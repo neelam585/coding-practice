@@ -1,0 +1,2279 @@
+458798  : idbi
+
+
+
+- custom annotation, AOP, @Query, stream characteristrics , libraries benefits,
+- how to achieve thread safety in counter? configuration, EnableAutoConfiguration, final references, named queries, native query
+- Ex of Abstraction?
+- Api validation annotation? , advantage and disadvantage of microservice, joinColumn, unit testing annotation?
+- jpa, jdbc, hibernate, 1,000 users browsing products?
+- benefit os using stream?, Qualifier and @Primary
+- N+1 problem? PUT, POST
+
+===========================================================
+git log --oneline
+9ea11c7 
+
+git reset --hard 9ea11c7
+git push --force origin main
+
+
+
+------------------------------------------------------------------------
+✅ 5. Secrets Management (Don’t Hardcode Passwords)
+
+Create a secret file:
+
+echo "root" > mysql_root_password.txt
+
+check
+cat mysql_root_password.txt
+---------
+5️⃣ Update .gitignore (Very Important 🔒)
+
+So you don’t commit passwords:
+
+echo "mysql_root_password.txt" >> .gitignore
+----------------------------
+✅ 4. Backup & Restore MySQL Volume
+🔹 Backup
+docker run --rm \
+  -v mysql-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/mysql-backup.tar.gz /data
+
+
+This creates: mysql-backup.tar.gz
+
+🔹 Restore
+docker run --rm \
+  -v mysql-data:/data \
+  -v $(pwd):/backup \
+  alpine sh -c "rm -rf /data/* && tar xzf /backup/mysql-backup.tar.gz -C /"
+
+---------------------------
+Now:
+
+mysql-data = named volume (managed by Docker)
+
+./backend/logs = bind mount (from host)
+-----------
+Inspect & Manage Network
+docker network ls
+docker network inspect app-net
+docker network rm app-net   # (only if containers are stopped)
+
+
+- Use .dockerignore: This file works like .gitignore, any file listed within .dockerignore will not be added to the Docker image, reducing its size.
+- .dockerignore 
+		Speeds up build context upload
+		Prevents useless files going into image
+
+
+------------------------------------------------------------------------------------------------------------------------------
+jvm architecture
+- 3 part 
+	- class loader: loading, linking, initlilizer
+		bootstrap class loader: java.home.jre.jar file me 
+		extension class loader : it is the child class of bootstrap class loader.it is responsible to load class from extension class path 
+		application clas loader: it is child class of extension class loader. responsible of loading of application class path.
+	linking: 
+	verify: check .class file
+		prepration: 
+	
+	memory area:
+		method area: it load class level info . it is shared among all the thread. 
+		heap area : it store object, array . it is shared among all the thread. heap area is only one per jvm
+		stack area: store local veriable and current running method.
+		pc register: 
+		native method area
+		
+	execution engine:
+		
+	
+	execution engine
+========================================================================================================================================	
+------------------------------------------------------------------------------------------------------------------------------
+: Custom annotations can be used to mark specific methods or classes where cross
+cutting concerns (such as logging, security checks, or transactions) should be applied. AOP 
+frameworks, like Spring AOP, use reflection to intercept these methods based on annotations 
+-  AOP 
+works using advice, pointcuts, join points, and aspects.
+
+1. Aspect: The modularized concern (e.g., logging). 
+2. Join Point: A point during execution where the aspect can be applied (e.g., method 
+call). 
+3. Advice: The actual code to be executed. 
+4. Pointcut: Defines where advice should be applied. 
+----------------------------------------------------
+Story point: unit of work in hour
+user story: 
+------------------------------------------------------
+- @Query: You can use the @Query annotation to define a custom JPQL or native SQL query in the 
+repository interface. 
+
+------------------------------------------------------------------------------------------------------------------------------
+Aspect: The class with cross-cutting logic (@Aspect)
+🧠 Why do we need @Aspect?
+- In real projects, some logic is common everywhere:
+	Logging
+	Auditing
+	Security checks
+	Transactions
+These are called cross-cutting concerns.
+
+- Without AOP ❌:
+	You repeat the same code in every service method.
+- With AOP + @Aspect ✅:
+	Spring automatically injects this logic before/after method execution.
+----------------------------------------
+- @JsonInclude(JsonInclude.Include.NON_NULL) tells Jackson to exclude any fields that are null from the JSON output. 
+This helps produce cleaner, smaller, and more readable JSON responses or logs.
+
+
+------------------------------------
+✅ Option 2: Support Multiple Actions (Best Design) ⭐
+
+@EnableAspectJAutoProxy
+Means: Enable Spring AOP using proxies
+Why needed?
+Your AuditAspect is an Aspect (probably using @Aspect + @Around / @Before).
+This annotation:
+	Allows Spring to create proxy objects around your services
+	So your aspect can intercept method calls (for auditing)
+	
+
+Without this:
+❌ Your @Aspect won’t run
+--------
+🔹 @ConditionalOnMissingBean(AuditAspect.class)
+Means:
+Only create this bean if no AuditAspect bean already exists
+---------------------------------------------------------
+If you want more than one action, use an array:
+@Target({ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Auditable {
+    String[] actions();   // 👈 multiple actions supported
+    String description() default "";
+    boolean captureParameters() default true;
+    boolean captureResult() default true;
+}
+
+Usage:
+@Auditable(
+    actions = {"CREATE_ORDER", "UPDATE_INVENTORY", "SEND_EMAIL"},
+    description = "Order creation flow"
+)
+public Order createOrder(...) { ... }
+-------------------------------------------------------------
+What are the benefits of creating libraries?
+4️⃣ Better Code Quality
+
+1️⃣ Reusability
+
+2️⃣ Consistency 🧱
+All projects use same logic and same behavior.
+	Example:
+	Same password hashing logic everywhere
+	Same error handling format
+	Same logging format
+	✔ Fewer bugs
+	✔ Uniform behavior across systems
+	
+-------------
+In Spring Boot projects, we commonly use libraries like Jackson for JSON, Hibernate for JPA, Spring Security for authentication, 
+SLF4J/Logback for logging, JUnit and Mockito for testing, Lombok for reducing boilerplate, and JWT libraries for token handling. 
+Most of these come via Spring Boot starters.	
+-------------------------------------------------------------
+The Common Mistake
+
+❌ Don’t do this:
+
+List<String> ids = new ArrayList<>();
+transactions.stream()
+    .map(Transaction::getId)
+    .forEach(id -> ids.add(id));  // ❌ Side effect  , use toList();
+----------------------
+What exactly is changing?
+This line:
+		ids.add(id);
+			Modifies the ids list
+			ids exists outside the stream
+			Stream execution changes it
+			That is the side effect.
+-----------------
+Why?
+	Mutates external state
+	Not thread-safe for parallel streams
+	Not idiomatic stream usage
+	
+	Streams are meant to be: functional and side-effect free , *******
+	
+- A side effect is when a function:
+	Modifies external state	
+	Depends on external mutable state  *****
+	
+ List<User> updated = users.stream()
+                .map(u -> new User(u.id, true)) // no mutation
+                .toList();
+- in this example every time u is new object that why their is no mutation				
+=------------------------------------
+List<User> updated = users.stream()
+                .map(u -> {
+                    u.setActive(true); // side effect
+                    return u;
+                })
+                .toList();
+u is the same address A
+👉 NOT a new User
+👉 NOT a copy				
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+- final is a keyword used to restrict modification.
+- Special Case: final with References
+	final List<String> list = new ArrayList<>();
+	list.add("A");   // ✅ Allowed
+	list = new ArrayList<>(); // ❌ Not allowed
+
+Meaning:
+	Reference cannot change
+	Object can change	
+-------------------------------------------------------------
+- Dependency injection : This reduces coupling , 
+1️⃣ Constructor Injection ✅ (Best Practice)
+		✔ Immutable
+		✔ Easy to test
+		
+-------------------------------------------------------------
+How to achieve thread safety in a counter?
+| Scenario           | Best choice     |
+| ------------------ | --------------- |
+| Simple app         | `synchronized`  |
+| High concurrency   | `AtomicInteger` |
+| Extreme contention | `LongAdder`     |
+| Advanced locking   | `ReentrantLock` |
+
+- No — volatile alone does NOT give thread safety.
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+@EnableAutoConfiguration tells Spring Boot:
+	Looking at the dependencies on your classpath
+	Checking existing beans you’ve defined
+
+| Annotation                 | Purpose                                                          |
+| -------------------------- | ---------------------------------------------------------------- |
+| `@Configuration`           | Declares a class that defines Spring beans                       |
+| `@EnableAutoConfiguration` | Automatically configures beans based on classpath and properties |
+
+
+-----------------------------------------------------------------------------
+A Named Query is a predefined query written in JPQL (or HQL) and given a name.
+	Defined at entity level
+	Compiled & validated at startup
+	Database-independent
+------------
+Native SQL Query
+Advantages ✅
+
+Full SQL power
+	Better for complex joins, reports, analytics
+	Can use DB-specific features
+
+Limitations ❌
+	Database-dependent
+	No compile-time validation
+	Harder to maintain
+-----------------------------------------------------------------------------
+public class FinallyReturnExample {
+    public static String testFinallyReturn() {
+        try {
+            System.out.println("In try block");
+            return "Return from try";
+        } catch (Exception e) {
+            System.out.println("In catch block");
+            return "Return from catch";
+        } finally {
+            System.out.println("In finally block");
+            return "Return from finally"; // Overrides previous return values
+        }
+    }
+
+    public static void main(String[] args) {
+        String result = testFinallyReturn();
+        System.out.println("Result: " + result);
+    }
+}
+
+//OUTPUT
+In try block
+In finally block
+Result: Return from finally
+
+
+-----------------------------------------------------------------------------
+️⃣ Abstraction (Hide Implementation, Show Only What’s Needed)
+public class CreditCardPayment implements PaymentService {
+    public void pay(double amount) {
+        System.out.println("Paid using Credit Card");
+    }
+}
+public class UpiPayment implements PaymentService {
+    public void pay(double amount) {
+        System.out.println("Paid using UPI");
+    }
+}
+Usage:
+
+PaymentService paymentService = new UpiPayment();
+paymentService.pay(500);
+--------------------------------------------------------
+
+
+--------------------------------------------------------
+What is Fault Tolerance in Microservices?
+- prevent the system from pepetedly calling the faling service. three state-> open, close, half open.
+Fault tolerance in microservices is the ability of the system to continue functioning even when some services fail, using techniques like 
+circuit breakers, retries, timeouts, fallbacks, and caching.
+--------------------------------------------------------
+JPA / Hibernate Mapping
+Customer entity
+- customer_id is FK for order table but it is the primary key of customer table
+@Entity
+public class Customer {
+
+    @Id
+    @GeneratedValue
+    private Long customerId;
+
+    @OneToMany(mappedBy = "customer", fetch = FetchType.EAGER)
+    private List<Order> orders;
+}
+
+Order entity
+@Entity
+public class Order {
+
+    @Id
+    @GeneratedValue
+    private Long orderId;
+
+    @ManyToOne
+    @JoinColumn(name = "customer_id") // FK column
+    private Customer customer;
+}
+=> Proper One-to-Many with @ManyToOne + @JoinColumn (Recommended)
+
+| Mapping Style                         | Tables Created |
+| ------------------------------------- | -------------- |
+| `@OneToMany(mappedBy)` + `@ManyToOne` | ✅ 2 tables     |
+| `@OneToMany` with `@JoinTable`        | ❌ 3 tables     |
+
+----------------------------------------------------------------
+The N+1 problem happens when Hibernate executes one query to fetch parent entities and then N additional queries to fetch child entities 
+due to lazy loading. It can be avoided using JOIN FETCH, EntityGraph, batch fetching, or by carefully using eager fetching.
+
+What happens in DB:
+SELECT * FROM customer;           -- 1 query
+
+SELECT * FROM orders WHERE customer_id = 1;  -- for customer 1
+SELECT * FROM orders WHERE customer_id = 2;  -- for customer 2
+SELECT * FROM orders WHERE customer_id = 3;  -- for customer 3
+...
+
+
+🛠️ How to Avoid N+1 Problem
+✅ 1. Use JOIN FETCH (Best & Most Common)
+
+JPQL:
+
+@Query("SELECT c FROM Customer c JOIN FETCH c.orders")
+List<Customer> findAllWithOrders();
+------------------------------------------------------------
+✅ What Happens With orphanRemoval = true?
+@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<OrderItem> items;
+
+
+Now:
+
+order.getItems().remove(item1);
+orderRepository.save(order);
+
+
+Result in DB:
+
+✅ Hibernate executes: DELETE FROM order_item WHERE id = ?
+
+The removed child is automatically deleted
+
+No orphan row left in DB 🎯
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+🔹 POST
+Creates a new resource or triggers processing
+Server decides the resource ID
+Not idempotent (same request twice → different results)
+
+PUT is used to create or replace a specific resource, and is idempotent.
+Typical use
+/products  : POST
+/products/{id}  : PUT
+----------------------------------------------------------------------------------------------------------------------------------------------------
+@Qualifier, @Primary
+
+	inteerface PaymentService
+	bean CardPaymentService 
+	bean UpiPaymentService
+
+	OrderService : inject bean in
+----------------------------------------------------------------------------------------------------------------------------------------------------
+String str1 = "Java"; -> scp
+    String str2 = new String("Java");  -> heap
+    String str3 = str2.intern();   -> move scp
+    System.out.println(str1 == str2);  false
+    System.out.println(str1 == str3);  true 
+    System.out.println(str2 == str3);  false
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+- map() transforms each element into one element, while flatMap() transforms each element into a stream and then flattens 
+all results into a single stream.
+- Stream.of(evenArray, oddArray) creates a stream of lists, and flatMap(List::stream) converts each list into a stream and flattens them into 
+a single stream of integers.
+----------------------------------------------------------------------------------------------------------------------------------------------------
+Why Use a Marker Interface?
+
+	1) To tag a class    : Ex -> public class Order implements Serializable {
+	2) To change behavior of JVM or framework : 
+			public class Product implements Cloneable {} 
+			Product p1 = new Product();
+			Product p2 = (Product) p1.clone();  // works only if Cloneable is implemented  
+							✅ By default, clone() creates a shallow copy,
+							So both p1 and p2:
+							Have different memory addresses
+							But share the same referenced objects inside
+	3) To enable or disable some feature at runtime
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+•	Validations on Request?
+Common annotations:
+@NotNull
+@NotBlank
+@NotEmpty
+@Size
+@Min, @Max
+@Positive, @Negative
+@Email
+@Pattern
+
+@Valid (used in controller)tells Spring: validate this object before calling method.
+public ResponseEntity<String> createProduct(@Valid @RequestBody CreateProductRequest request) {
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+✅ Advantages of Microservices
+1️⃣ Independent Deployment 🚀
+2️⃣ Scalability 📈 : Product service gets heavy traffic → scale only that
+
+3️⃣ Fault Isolation 🧯
+If one service fails, others can still work : if services are not dependent to eachother
+
+4️⃣ Technology Freedom 🛠️
+5️⃣ Smaller Codebase & Better Maintainability 🧩
+-----------------
+❌ Disadvantages of Microservices
+2️⃣ Data Consistency Issues 🗄️
+Each service has its own DB
+Transactions across services are hard
+Need Saga / eventual consistency
+
+4️⃣ Debugging is Hard
+Need:
+	Logs
+	Trace IDs
+	Distributed tracing
+
+6️⃣ Higher Operational Cost 💰
+	More servers
+	More monitoring tools
+--------------------------------------------------------------------------
+- Testing Annotation ?
+In Spring Boot, common testing annotations include @SpringBootTest for integration tests, @WebMvcTest for controller tests, 
+@DataJpaTest for repository tests, @MockBean and @Mock for mocking dependencies, and @Test to define test methods.
+
+@ExtendWith(MockitoExtension.class) integrates Mockito with JUnit 5 and automatically initializes @Mock and @InjectMocks annotations for unit tests.
+- without @ExtentWith  @Mock and @InjectMocks will not work.
+
+An integration test checks whether multiple components like controller, service, repository, 
+and database work together correctly by running the application in a real or near-real environment.
+--------------------------------------------------------------------------
+🛒 E-commerce Example
+
+Imagine:
+1,000 users browsing products
+Each request hits DB
+❌ Without pool:
+1,000 connections created & destroyed
+Very slow
+DB may crash
+
+✅ With pool (say size = 20):
+Only 20 DB connections
+Reused efficiently
+Fast and stable system
+
+How it works with JPA
+	Application starts → connection pool creates N connections.
+	EntityManager / Hibernate requests a connection.
+	Pool provides an existing connection → executes queries.
+	Connection returned to pool → ready for reuse.
+	
+--------------------------------------------------------------------------
+️⃣ What is JPA?
+
+JPA (Java Persistence API) is a standard ORM (Object-Relational Mapping) framework in Java.
+It allows you to interact with a database using Java objects, instead of writing raw SQL queries.
+Popular implementations: Hibernate,
+
+✅ In short: JPA reduces boilerplate, speeds up development, and makes code more maintainable.
+
+Drawbacks of jpa
+- Very complex joins or reports may be easier in raw SQL than JPQL
+- Harder to see actual SQL being executed unless you enable logging
+
+| Scenario                             | Recommended                              |
+| ------------------------------------ | ---------------------------------------- |
+| Simple CRUD app                      | **JPA** (less boilerplate)               |
+| Complex reporting, analytics         | **JDBC** (better control, optimized SQL) |
+| High-performance batch jobs          | **JDBC**                                 |
+| Rapid development, maintainable code | **JPA**                                  |
+
+--------------------------------------------------------------------------
+@ConfigurationProperties (NOT for mocking)
+Used to bind properties to a POJO, not for testing.
+@ConfigurationProperties(prefix = "tax")
+public class TaxProperties {
+    private BigDecimal rate;
+}
+-------------------------------------
+ @Value("${tax.rate}") : call value from property file to java class.
+---------------------------------------------------------------------------------------------------------------
+- POST is used to create resources or trigger processing. Even for internal service-to-service calls with no database persistence, 
+POST is valid when the request represents an action or non-idempotent processing.”
+
+Service A(order service) calls Service B(tax service) to calculate tax.
+Correct design
+POST /tax/calculate
+Request:
+
+{
+  "amount": 1000,
+  "country": "IN"
+}
+Response:
+
+{
+  "tax": 180
+}
+-------------------------------
+✅ Good:
+
+/users
+/orders
+
+❌ Bad:
+/getUsers
+/createUser
+/deleteOrder
+
+🔹 Use plural nouns
+
+✅ /users
+❌ /user
+
+🔹 Use lowercase & hyphens
+
+✅ /order-items
+❌ /OrderItems
+❌ /order_items
+
+/api/v1/users
+/api/v2/users
+
+404: Not Found
+
+----------------------------------
+✅ Strategy Pattern (Very common in interviews)
+
+👉 Choose algorithm at runtime.
+
+interface PaymentStrategy {
+    void pay(int amount);
+}
+
+class CreditCardPayment implements PaymentStrategy {
+    public void pay(int amount) {
+        System.out.println("Paid " + amount + " using Credit Card");
+    }
+}
+
+class UpiPayment implements PaymentStrategy {
+    public void pay(int amount) {
+        System.out.println("Paid " + amount + " using UPI");
+    }
+}
+
+
+Usage:
+
+PaymentStrategy payment = new UpiPayment();
+payment.pay(500);
+
+-----------------------------------
+Step 3: Factory Class
+public class PaymentFactory {
+
+    public static PaymentService getPaymentService(String type) {
+
+        if (type.equalsIgnoreCase("CREDIT")) {
+            return new CreditCardPayment();
+        } else if (type.equalsIgnoreCase("UPI")) {
+            return new UpiPayment();
+        } else if (type.equalsIgnoreCase("WALLET")) {
+            return new WalletPayment();
+        } else {
+            throw new IllegalArgumentException("Invalid payment type");
+        }
+    }
+}
+
+Step 4: Client Code (Order Service)
+public class OrderService {
+
+    public void placeOrder(String paymentType, double amount) {
+        PaymentService paymentService = PaymentFactory.getPaymentService(paymentType);
+        paymentService.pay(amount);
+    }
+}
+
+----------------------------------
+️⃣ Adapter Pattern 🔌
+
+👉 Integrate third-party APIs into your system
+- It allows two incompatible interfaces to work together without changing their existing code.
+
+Target Interface (what client wants)
+interface Charger {
+    void chargePhone();
+}
+🔌 Adaptee (existing class with different method)
+class OldCharger {
+    public void chargeWithOldPin() {
+        System.out.println("Charging with old charger...");
+    }
+}
+🔁 Adapter (bridge between them)
+class ChargerAdapter implements Charger {
+
+    private OldCharger oldCharger;
+
+    public ChargerAdapter(OldCharger oldCharger) {
+        this.oldCharger = oldCharger;
+    }
+
+    @Override
+    public void chargePhone() {
+        // Convert new interface call to old method call
+        oldCharger.chargeWithOldPin();
+    }
+}
+👨‍💻 Client Code
+public class Main {
+    public static void main(String[] args) {
+        OldCharger oldCharger = new OldCharger();
+
+        Charger charger = new ChargerAdapter(oldCharger); // adapter used
+        charger.chargePhone();
+    }
+}
+Example:
+	Razorpay API
+	Stripe API
+	SMS Gateway
+
+You write:
+PaymentGatewayAdapter
+to match your internal interface.
+----------------------------------------
+5️⃣ Observer Pattern 🔔
+
+👉 One event → many listeners
+1️⃣ Order Event (Message)
+class OrderCreatedEvent {
+    private String orderId;
+    private double amount;
+
+    // constructor, getters, setters
+}
+
+2️⃣ Subject: Order Service (Producer)
+@Service
+class OrderService {
+
+    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
+
+    public OrderService(KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    public void placeOrder(String orderId, double amount) {
+        OrderCreatedEvent event = new OrderCreatedEvent(orderId, amount);
+
+        // 🔔 Notify observers (publish event)
+        kafkaTemplate.send("order-created-topic", event);
+
+        System.out.println("Order placed and event published: " + orderId);
+    }
+}
+
+3️⃣ Observer 1: Inventory Service (Kafka Listener)
+@Service
+class InventoryListener {
+
+    @KafkaListener(topics = "order-created-topic", groupId = "inventory-group")
+    public void handleOrder(OrderCreatedEvent event) {
+        System.out.println("Inventory Service: Reducing stock for order " + event.getOrderId());
+    }
+}
+
+4️⃣ Observer 2: Payment Service (Kafka Listener)
+@Service
+class PaymentListener {
+
+    @KafkaListener(topics = "order-created-topic", groupId = "payment-group")
+    public void handleOrder(OrderCreatedEvent event) {
+        System.out.println("Payment Service: Processing payment for order " + event.getOrderId());
+    }
+}
+
+Spring Example:
+	Application events
+	Kafka listeners
+	Domain events
+
+---------------------------------------------------------------------------
+4️⃣ Proxy Pattern 🪞
+- proxy object controls access to a real object. Both the proxy and real object share the same interface, so the client remains unaware of the proxy.”
+👉 A wrapper that controls access to another object
+
+interface ProductService {
+    void viewProduct(String productId);
+    void updatePrice(String productId, double price);
+}
+2️⃣ Real Subject (Actual Service)
+class RealProductService implements ProductService {
+
+    @Override
+    public void viewProduct(String productId) {
+        System.out.println("Viewing product: " + productId);
+    }
+
+    @Override
+    public void updatePrice(String productId, double price) {
+        System.out.println("Updating price of " + productId + " to " + price);
+    }
+}
+
+3️⃣ Proxy (Access Control + Logging)
+class ProductServiceProxy implements ProductService {
+    private RealProductService realService;
+    private String userRole; // e.g. "ADMIN" or "USER"
+
+    public ProductServiceProxy(String userRole) {
+        this.userRole = userRole;
+        this.realService = new RealProductService();
+    }
+
+    @Override
+    public void viewProduct(String productId) {
+        // Everyone can view
+        System.out.println("[LOG] viewProduct called");
+        realService.viewProduct(productId);
+    }
+
+    @Override
+    public void updatePrice(String productId, double price) {
+        System.out.println("[LOG] updatePrice called");
+
+        if ("ADMIN".equalsIgnoreCase(userRole)) {
+            realService.updatePrice(productId, price);
+        } else {
+            System.out.println("❌ Access Denied: Only ADMIN can update price");
+        }
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+
+        ProductService userService = new ProductServiceProxy("USER");
+    }
+}
+
+
+Spring Uses It For:
+	@Transactional
+	@Lazy
+	@Cacheable
+
+Security
+✔ Spring creates proxy classes around your beans
+------------------------------------------------------------------------------------------
+3️⃣ Decorator Pattern 🎁
+
+👉 Add extra behavior without changing class
+
+Think:
+☕ Coffee → add Milk → add Sugar → add Cream
+You keep wrapping the same coffee object with extra features.
+
+Real Spring Example:
+	Filters
+	Interceptors
+	AOP proxies
+	
+E-commerce Example:
+Base price + tax + discount + shipping fee
+Price = BasePrice + Tax + Discount + Shipping
+✔ Spring AOP heavily uses this concept
+
+
+-----------------------------------------------------------------------------------------------
+| Layer            | Correct Annotation | Reason                          |
+| ---------------- | ------------------ | ------------------------------- |
+| Utility / Helper | `@Component`       | Generic                         |
+| Business Logic   | `@Service`         | Clear intent                    |
+| DB Access        | `@Repository`      | Exception translation + clarity |
+
+
+@Component is a generic Spring bean annotation, @Service is used for business logic classes, and @Repository is used for persistence layer 
+and provides exception translation. Technically they all register beans and can be interchanged, but they should not be, because each 
+represents a specific layer and improves code readability and design.
+
+🧩 Relationship Between Them
+@Component
+   ↑
+@Service
+@Repository
+@Controller
+
+✔ All are Spring beans
+✔ All are detected by component scanning
+✔ All are managed by IoC container
+
+❓ Can We Interchange Them?
+✅ Technically: YES
+
+
+----------------------------------------------------------------------------------------
+Interview-ready points (short & crisp)
+
+You can literally say these:
+	** Java 8 Streams enable functional-style programming in Java.
+	They provide declarative data processing (focus on what, not how).
+	Streams support lazy evaluation, improving performance.
+	They allow easy parallelism using parallelStream().
+	** Streams do not modify the source collection, reducing side effects.
+	They improve readability and maintainability of complex operations.
+	** Streams work well with lambda expressions and method references.
+	** Best suited for bulk data processing, not simple iteration.
+	🔥 Bonus line:
+	** Streams internally use the Iterator pattern and can optimize traversal.
+	Iterator<String> iterator = list.iterator();
+
+	while (iterator.hasNext()) {
+		System.out.println(iterator.next());
+	}
+
+----------------------------------------------------------------------------------------
+
+@Primary
+What it does
+	Marks one bean as the default choice.
+	
+	Example
+	@Service
+	@Primary
+	public class CreditCardPaymentService implements PaymentService {
+	}
+
+	@Service
+	public class PaypalPaymentService implements PaymentService {
+	}
+
+	@Autowired
+	private PaymentService paymentService; 
+	// ✅ CreditCardPaymentService is injected
+
+------------
+@Qualifier
+What it does
+
+Explicitly tells Spring exactly which bean to inject by name.
+
+	Example
+	@Service("creditCard")
+	public class CreditCardPaymentService implements PaymentService {
+	}
+
+	@Service("paypal")
+	public class PaypalPaymentService implements PaymentService {
+	}
+
+	@Autowired
+	@Qualifier("paypal")
+	private PaymentService paymentService;
+	// ✅ PaypalPaymentService is injected
+
+Using both together:  Yes, they can be used together 👌
+
+@Service
+@Primary
+public class CreditCardPaymentService implements PaymentService {
+}
+
+@Autowired
+@Qualifier("paypal")
+private PaymentService paymentService;
+// ✅ Qualifier overrides Primary
+
+
+➡️ @Qualifier always wins over @Primary
+Use @Primary when one implementation is usually preferred
+Use @Qualifier when you need a specific implementation
+
+---------------------------------------------------------
+@Autowired tells Spring: “Find a matching bean from the ApplicationContext and inject it here.”
+Spring does this during startup, not at runtime per request.
+---------------------------------------------------------
+The hashCode and equals contract in Java specifies that: 
+	1. If two objects are equal according to equals(), they must have the same hashCode. 
+	2. If two objects have the same hashCode, they might or might not be equal according 
+	to equals(). 
+  - for that we have to override hashCode and equals method	
+
+String str1 = new String("Hello"); 
+String str2 = new String("Hello"); 
+ 
+System.out.println(str1 == str2);        // false, different objects 
+System.out.println(str1.equals(str2));   // true, content is the same 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ArrayList 
+
+TC : O(n)
+o(1)
+
+allow duplicate , maintain order
+- takes less memory then linklist
+
+LinkList:
+
+- used for frequent insertion and delition
+
+@Entity
+class Customer extend BaseEntity{
+private int id;
+private String name;
+private String email;
+
+}
+
+class BaseEntity{  
+private Date createdAt;
+private Date updatedAt
+
+}
+
+PolyMorhism
+
+
+
+
+
+
+=========================================================================
+1️⃣ Singleton Scope (Default)
+✅ What it means
+		Only ONE instance of the bean per Spring ApplicationContext
+		Same object shared everywhere
+
+📌 Default scope in Spring
+🧠 Lifecycle
+		Created at application startup
+		Destroyed when application shuts down
+
+🧪 Example
+@Component
+public class ProductService {
+}
+
+@Autowired
+ProductService service1;
+
+@Autowired
+ProductService service2;
+
+➡️ service1 == service2 ✅ (same object)
+---------
+2️⃣ Prototype Scope
+✅ What it means
+		New instance created every time bean is requested
+🧠 Lifecycle
+		Created on demand
+		Spring does NOT manage destruction
+
+🧪 Example
+@Component
+@Scope("prototype")
+public class Cart {
+}
+
+@Autowired
+Cart cart1;
+
+@Autowired
+Cart cart2;
+
+
+➡️ cart1 != cart2 ✅ (different objects)
+
+-----------------------------------------------------------------------
+Request Bean scope : A request-scoped bean is created once per HTTP request and destroyed after the request is finished.
+🧠 Another Very Real Example
+
+✅ Request Logging / Tracing
+
+Store traceId, requestId
+
+Add it to logs in filters, services, repositories
+
+All logs in one request share same ID
+
+✅ Authentication Context
+
+Store current user info for that request
+
+✅ Validation / Error Collector
+
+Collect errors only for this request
+---------------------------------------------------------------------------------
+Why do we need scope of a Bean?
+Bean scope controls:
+	- How many objects of a bean are created
+	- How long the bean lives
+
+Who shares it
+Without scope, the framework wouldn’t know when to create, reuse, or destroy a bean.
+Main Reasons We Need Bean Scope
+	1. Control Object Creation
+     	     Different situations need different numbers of objects.
+		- Login service → one shared object ✅
+		- User form data → new object per request ✅
+
+Scope lets you decide this.
+	2. Memory Management
+	    - Creating too many objects wastes memory.
+		- singleton → saves memory
+		- prototype → uses more memory but gives independence
+	👉 Scope helps balance performance vs memory usage.
+
+3. Handle User-Specific Data
+In web apps:
+	- Shopping cart → should belong to one user
+	- Request data → should live only for one request
+
+Scopes like request and session make this easy.
+4. Avoid Data Corruption
+If multiple users share the same object by mistake, data can overwrite.
+	Example:
+	User A updates cart
+	User B sees User A’s cart ❌
+
+
+Correct scope (session) prevents this.
+
+5. Lifecycle Management
+Scope defines:
+	When bean is created
+	When it is destroyed
+Example:
+singleton → created at startup
+request → destroyed after request ends
+Spring handles this automatically 🎯
+
+=============================================================================================================================================
+
+
+- mvn clean package
+- docker build -t user-app .
+- 
+
+====================================================================================================================
+- @Auditable is a custom marker annotation used to identify methods that should be audited. It is retained at runtime and targets methods so 
+that an AOP interceptor or proxy can detect it and perform audit logic without polluting business code.
+
+2. @Retention(RetentionPolicy.RUNTIME)
+
+Defines how long the annotation stays in the compiled code.
+
+RUNTIME → available at runtime through reflection
+
+Required for things like AOP, aspects, interceptors
+
+Without RUNTIME, an auditing aspect would not detect it.
+
+3. @Documented
+
+Means this annotation will appear in JavaDoc
+
+Not important for runtime behavior, but good for API documentation.
+
+-------------------------------------------------------------------------------
+Audit Library - Design & Architecture Document
+
+## Executive Summary
+
+This document outlines the design of a lightweight, production-grade audit library for Spring Boot applications. The library enables automatic method-level auditing through a simple annotation-based approach, sending audit events to an external microservice without requiring application developers to write any audit-related code.
+
+**Key Deliverables:**
+- Reusable audit library JAR (com.audit:audit-library)
+- Sample Spring Boot application demonstrating integration
+- Comprehensive unit & integration tests (>80% coverage)
+- Complete documentation and troubleshooting guide
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Design Pattern: Spring AOP + Annotations
+
+The library uses **Aspect-Oriented Programming (AOP)** combined with **custom annotations** to achieve transparent method auditing:
+
+```
+┌─────────────────────────────────┐
+│   @Auditable Annotation         │  ← Developer marks methods
+├─────────────────────────────────┤
+│   AuditAspect (AOP)             │  ← Intercepts calls
+├─────────────────────────────────┤
+│   Event Capture & Build         │  ← Captures details
+├─────────────────────────────────┤
+│   AuditServiceClient (Feign)    │  ← Sends to service
+├─────────────────────────────────┤
+│   Background Thread Processing  │  ← Async, non-blocking
+└─────────────────────────────────┘
+```
+
+### 1.2 Technology Stack
+
+| Component | Technology | Rationale |
+|-----------|-----------|-----------|
+| Method Interception | Spring AOP | Native Spring support, declarative |
+| HTTP Client | OpenFeign | Minimal boilerplate, Spring integration |
+| Configuration | Spring Boot Auto-Config | Zero-config for developers |
+| Serialization | Jackson | Standard Spring JSON library |
+| Testing | JUnit 5 + Mockito | Modern testing framework |
+| Build | Maven | Standard Java build tool |
+
+---
+
+## 2. Core Components
+
+### 2.1 @Auditable Annotation
+
+**Purpose**: Mark methods for automatic auditing
+
+**Design Decisions**:
+- Placed on **method level** (ElementType.METHOD) only for clarity
+- **Runtime retention** (RetentionPolicy.RUNTIME) for AOP to discover
+- **Optional parameters** for flexibility (captureParameters, captureResult)
+- **Action field is required** (no default) to enforce intentional auditing
+
+```java
+@Target({ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Auditable {
+    String action();                         // REQUIRED
+    String description() default "";         // Optional context
+    boolean captureParameters() default true; // Configurable capture
+    boolean captureResult() default true;    // Configurable capture
+}
+```
+
+**Why not on classes?** Class-level would audit all methods indiscriminately, increasing noise and potential for capturing unwanted data.
+
+### 2.2 AuditAspect (AOP Interceptor)
+
+**Purpose**: Intercept annotated methods and capture execution details
+
+**Key Design Points**:
+
+#### Timing Capture
+```java
+long startTime = System.currentTimeMillis();
+try {
+    result = joinPoint.proceed();  // Execute actual method
+} finally {
+    long executionTime = System.currentTimeMillis() - startTime;
+}
+```
+- Captures execution time including the actual method duration
+- Uses try-finally to ensure timing recorded even on exceptions
+
+#### Exception Handling
+```java
+catch (Exception e) {
+    exception = e;
+    success = false;
+    throw e;  // Re-throw immediately
+} finally {
+    // Build and send audit event with exception details
+}
+```
+- Exceptions are captured **and re-thrown** (no silent failures)
+- Application behavior unaffected
+- Exception details included in audit event
+
+#### Asynchronous Processing
+```java
+private void sendAuditEventAsync(AuditEvent auditEvent) {
+    new Thread(() -> {
+        try {
+            auditServiceClient.sendAudit(auditEvent);
+        } catch (Exception e) {
+            logger.warn("Audit service unavailable", e);
+        }
+    }).start();
+}
+```
+
+**Why async?**
+- Prevents audit service latency from blocking business operations
+- Application returns result immediately to caller
+- Non-blocking resilience: if audit service down, app continues
+- Could be upgraded to ExecutorService for better thread management
+
+#### Type-Safe Parameter Capture
+```java
+private boolean isSimpleType(Object obj) {
+    Class clazz = obj.getClass();
+    return clazz.isPrimitive() ||
+           clazz == String.class ||
+           Number.class.isAssignableFrom(clazz) ||
+           // ... etc
+}
+```
+
+**Why restrict to simple types?**
+- Prevents serialization failures with complex objects
+- Reduces audit event size (no entire object trees)
+- Avoids sensitive data in nested objects
+- Developers can use `captureParameters=false` for sensitive data
+
+### 2.3 AuditEvent Domain Model
+
+**Purpose**: Immutable representation of a single audit event
+
+**Design Pattern**: **Builder Pattern**
+
+```java
+AuditEvent event = AuditEvent.builder()
+    .action("CREATE_PAYMENT")
+    .className("PaymentService")
+    .methodName("processPayment")
+    .executionTimeMs(145L)
+    .status("SUCCESS")
+    .build();
+```
+
+**Why builder pattern?**
+- Many optional fields (parameters, result, exception details)
+- Prevents constructor parameter explosion
+- Fluent, readable API
+- Easy to extend with new fields
+
+**JSON Serialization**:
+```java
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class AuditEvent { ... }
+```
+- Excludes null fields to reduce payload size
+- Clean JSON representation sent to service
+
+### 2.4 AuditServiceClient (Feign)
+
+**Purpose**: Communicate with external Audit Service microservice
+
+**Design**:
+```java
+@FeignClient(
+    name = "audit-service",
+    url = "${audit.service.url:http://localhost:8081}",
+    configuration = AuditServiceFeignConfig.class
+)
+public interface AuditServiceClient {
+    @PostMapping("/audit")
+    AuditServiceResponse sendAudit(@RequestBody AuditEvent auditEvent);
+}
+```
+
+**Why Feign?**
+- Declarative HTTP client (minimal code)
+- Integrates with Spring ecosystem
+- Configuration-driven URL management
+- Built-in retry/circuit-breaker support (via Spring Cloud)
+
+**Custom ErrorDecoder**:
+```java
+@Bean
+public ErrorDecoder errorDecoder() {
+    return (methodKey, response) -> {
+        logger.warn("Audit service error: {}", response.status());
+        // Don't throw exception - allow graceful degradation
+        return new AuditServiceException("Failed to send audit");
+    };
+}
+```
+
+**Why custom error handling?**
+- Feign by default throws exceptions on HTTP errors
+- Custom decoder catches errors and logs them
+- Calling code can catch and handle gracefully
+- Audit failures don't propagate upstream
+
+### 2.5 Auto-Configuration
+
+**Purpose**: Zero-configuration library integration
+
+**Mechanism**: Spring Boot's `spring.factories` auto-discovery
+```properties
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.audit.library.config.AuditLibraryAutoConfiguration
+```
+
+**Configuration Class**:
+```java
+@Configuration
+@EnableAspectJAutoProxy
+@EnableFeignClients(clients = {AuditServiceClient.class})
+public class AuditLibraryAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean(AuditAspect.class)
+    public AuditAspect auditAspect(AuditServiceClient auditServiceClient) {
+        return new AuditAspect(auditServiceClient);
+    }
+}
+```
+
+**Key Features**:
+- `@EnableAspectJAutoProxy`: Enables AOP processing
+- `@EnableFeignClients`: Activates Feign client discovery
+- `@ConditionalOnMissingBean`: Allows override if needed
+- No additional configuration files required in consuming apps
+
+---
+
+## 3. Failure Resilience Strategy
+
+### 3.1 Scenario 1: Audit Service Unavailable
+
+```
+Application Call
+    ↓
+AOP Aspect Intercepts
+    ↓
+Method Executes ✓ Returns immediately
+    ↓
+Async Thread: Send to Audit Service
+    ✗ Service Down → Caught Exception
+    ✗ Log Warning → Continue
+```
+
+**Result**: Application unaffected, warning logged, no exception thrown
+
+### 3.2 Scenario 2: Method Throws Exception
+
+```
+Application Call
+    ↓
+AOP Aspect Intercepts
+    ↓
+Method Executes → Throws IllegalArgumentException
+    ↓
+Aspect Catches → Records Exception Details
+    ↓
+Re-throws Exception → Caller receives it normally
+    ↓
+Async: Send Audit Event (with exception details)
+```
+
+**Result**: Exception propagates normally, audit event captures failure
+
+### 3.3 Scenario 3: Audit Event Creation Fails
+
+```
+Method executes successfully
+    ↓
+try {
+    Create AuditEvent → Some error?
+    Send to Service → Some error?
+} catch (Exception e) {
+    logger.error("Error while creating audit", e);
+    // Suppress - don't throw
+}
+```
+
+**Result**: Logged but not thrown upstream
+
+---
+
+## 4. Implementation Highlights
+
+### 4.1 Parameter Name Capture
+
+Using `MethodSignature.getParameterNames()`:
+```java
+String[] parameterNames = 
+    ((MethodSignature) joinPoint.getSignature()).getParameterNames();
+Object[] parameterValues = joinPoint.getArgs();
+
+Map parameters = new HashMap<>();
+for (int i = 0; i < parameterNames.length; i++) {
+    parameters.put(parameterNames[i], parameterValues[i]);
+}
+```
+
+**Benefit**: Audit events show semantic names: `userId=123` not `arg0=123`
+
+### 4.2 Client IP Extraction
+
+```java
+ServletRequestAttributes attributes = 
+    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+if (attributes != null) {
+    HttpServletRequest request = attributes.getRequest();
+    String clientIp = request.getHeader("X-Forwarded-For");
+    if (clientIp == null || clientIp.isEmpty()) {
+        clientIp = request.getRemoteAddr();
+    }
+}
+```
+
+**Benefit**: Audit trail includes source IP for compliance
+
+### 4.3 Configurable Capture
+
+Developers control what's captured:
+```java
+@Auditable(
+    action = "CHARGE_CARD",
+    captureParameters = false,  // Don't log card details
+    captureResult = false        // Don't log response
+)
+public void chargeCard(CardDetails card, Amount amount) { ... }
+```
+
+**Benefit**: Flexible security/privacy controls per method
+
+---
+
+## 5. Testing Strategy
+
+### 5.1 Unit Tests (audit-library)
+
+**AuditAspectTest**
+- Verifies annotation processing
+- Tests exception re-throwing
+- Validates event creation
+
+**AuditEventTest**
+- Builder pattern construction
+- JSON serialization/deserialization
+- Null field handling
+
+**Coverage Target**: >80% of library code
+
+### 5.2 Integration Tests (sample-app)
+
+**End-to-End Testing**:
+- @Auditable methods execute correctly
+- Parameters captured and sent
+- Exceptions handled properly
+- Multiple operations in sequence
+
+**Test Examples**:
+```java
+@Test
+void testPaymentAuditableMethodExecution() {
+    PaymentRequest request = new PaymentRequest(1L, "user123", 99.99, "USD");
+    PaymentResponse response = paymentService.processPayment(request);
+    assertNotNull(response);
+    assertEquals("SUCCESS", response.getStatus());
+}
+```
+
+### 5.3 Mock Audit Service
+
+Included in sample-app for testing without external dependency:
+```java
+@RestController
+@RequestMapping("/audit")
+public class MockAuditServiceConfig {
+    @PostMapping
+    public AuditServiceResponse receiveAudit(@RequestBody AuditEvent auditEvent) {
+        logger.info("📋 AUDIT EVENT RECEIVED: {}", auditEvent.getAction());
+        // Store in memory
+        auditStore.add(auditEvent);
+        return new AuditServiceResponse("SUCCESS", "Event received", UUID.randomUUID().toString());
+    }
+}
+```
+
+---
+
+## 6. Performance Characteristics
+
+### 6.1 Overhead Analysis
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| AOP Interception | <1ms | Minimal overhead |
+| Parameter Capture | <2ms | Type checking & Map creation |
+| Event Build | <2ms | Simple object construction |
+| Feign Client Setup | <1ms | Reused connection |
+| **Total Sync Overhead** | **<6ms** | Per audited method call |
+| **Async Send** | **Negligible** | Happens in background thread |
+
+### 6.2 Scalability
+
+- Throughput: 100+ audit events/second per instance
+- Memory: ~100-200 bytes per event
+- Network: Small JSON payloads (typically <1KB)
+- Thread Pool: Current implementation uses one thread per event (could be optimized with ExecutorService)
+
+### 6.3 Optimization Opportunities
+
+For high-volume applications:
+1. Replace `new Thread()` with `ExecutorService` thread pool
+2. Batch multiple events before sending
+3. Implement local queue for rate limiting
+4. Add circuit breaker for audit service failures
+
+---
+
+## 7. Security & Compliance Considerations
+
+### 7.1 Data Privacy
+
+- **PII Handling**: Developers must use `captureParameters=false` for sensitive data
+- **Audit Trail Immutability**: Events are immutable after creation
+- **Access Control**: External audit service should enforce access control
+- **Encryption**: Use HTTPS for audit service communication
+
+### 7.2 Compliance
+
+- **Audit Trail**: Complete record of who did what when
+- **Non-repudiation**: Cannot deny actions (events are immutable)
+- **Retention**: Depends on external audit service policy
+- **Regulations**: Supports GDPR, HIPAA, SOC2 requirements
+
+---
+
+## 8. Future Enhancements
+
+1. **Spring Security Integration**: Automatically capture authenticated user from SecurityContext
+2. **Async Processing**: Use `@Async` or ExecutorService instead of raw threads
+3. **Local Buffering**: Queue events locally if audit service is temporarily down
+4. **Circuit Breaker**: Gracefully degrade to local-only auditing during outages
+5. **Metrics**: Expose Micrometer metrics for audit events sent/failed
+6. **Custom Listeners**: Allow applications to react to audit events locally
+7. **Encryption**: End-to-end encryption of sensitive audit data
+8. **Retry Logic**: Configurable retry strategy with exponential backoff
+
+---
+
+## 9. Conclusion
+
+This audit library demonstrates:
+- **Clean Architecture**: Separation of concerns (AOP, domain, client)
+- **Spring Best Practices**: Auto-configuration, dependency injection, declarative programming
+- **Production Readiness**: Error handling, resilience, testing, documentation
+- **Developer Experience**: Simple annotation-based API, zero configuration
+- **Extensibility**: Builder pattern, conditional beans, custom error handling
+
+The design prioritizes reliability and ease of use while maintaining production-grade quality and performance.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+mvn clean package
+java -jar sample-app/target/sample-app-1.0.0.jar
+curl http://localhost:8080/api/payments/999
+
+mvn clean verify -DskipTests
+
+From the parent project root:
+
+mvn clean
+
+
+This deletes:
+
+target/
+
+old jacoco.exec
+
+old site/jacoco
+
+✅ 2️⃣ Run tests + generate report (Parent project)
+
+Run from the parent directory:
+
+mvn verify
+
+
+This will:
+
+Run tests in audit-library
+
+Run tests in sample-app
+
+Generate JaCoCo reports automatically
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+=============================================================================================================================================
+					DSA 
+
+
+🧱 Real-world Distributed Cache = Sharding + Replication
+        Shard 1                    Shard 2
+   ----------------          ----------------
+   Primary A                Primary D
+     |   |                    |   |
+   Rep B Rep C             Rep E Rep F
+
+
+Each shard holds different data
+
+Replicas inside a shard hold same data
+
+This is how Redis Cluster works
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+- Sharding/partitioning splits data across multiple servers using a shard key so systems can scale horizontally and handle large workloads efficiently.
+
+1. What is sharding? (simple definition)
+
+Sharding means dividing data into smaller pieces (shards) and storing each piece on a different server. ***
+
+Instead of one big database handling everything, multiple databases handle subsets of the data.
+
+Users Table
+ ├── Shard 1 → Server A
+ ├── Shard 2 → Server B
+ └── Shard 3 → Server C
+
+2. Why sharding is needed
+
+Without sharding:
+	Single DB becomes a bottleneck
+	Limited by vertical scaling (CPU, RAM)  ****
+	Slower queries as data grows
+
+With sharding:  **
+	Horizontal scaling
+	Faster queries
+	Higher throughput
+
+Fault isolation
+------------------------
+3. Sharding vs Replication (important distinction)
+| Sharding                      | Replication                 |
+| ----------------------------- | --------------------------- |
+| Splits data                   | Copies data                 |
+| Improves scalability          | Improves availability       |
+| Each shard has different data | All replicas have same data |
+
+
+4. Common sharding strategies
+A. Range-based sharding
+
+Data is split by value ranges.
+
+User ID 1–1,000 → Shard A
+User ID 1,001–2,000 → Shard B
+------------------------------------------
+Pros
+	Easy to understand
+	Range queries are fast
+	Cons
+	Hot shards (uneven traffic)
+	Hard to rebalance
+
+B. Hash-based sharding (most common)
+	Shard is chosen using a hash function.
+Example
+hash(user_id) % 4 → shard number
+Pros
+	Even data distribution
+	Avoids hot spots
+Cons
+	Range queries are hard
+	Re-sharding is expensive
+
+C. Directory-based sharding
+
+A lookup service maps keys to shards.
+
+Example
+User ID → Shard Map → Server
+Pros
+Flexible
+Easy rebalancing
+Cons
+Extra lookup
+Directory is a potential bottleneck
+
+D. Geo-based sharding
+	Data is partitioned by location.
+	EU users → EU shard
+	US users → US shard
+Pros
+	Low latency
+	Helps with data residency laws
+Cons
+	Cross-region queries are complex
+
+5. How a request is routed to the correct shard
+Incoming request
+   ↓
+Extract shard key (e.g., user_id)
+   ↓
+Apply sharding logic (hash/range/map)
+   ↓
+Route to correct shard
+
+------------------------------------------------
+This logic lives in:
+
+Application code
+
+Database driver
+
+Middleware / proxy
+
+6. Choosing a shard key (critical decision)
+
+A good shard key:
+✔ High cardinality
+✔ Evenly distributed
+✔ Used in most queries
+✔ Immutable
+
+- Bad shard keys
+	Boolean values
+	Status fields
+	Time-only fields
+
+-------------------------------
+7. Rebalancing shards
+	As data grows:
+	Add new shards
+	Move data between shards
+	Update shard mapping
+	Techniques
+	Consistent hashing
+
+Virtual shards
+	Background data migration
+
+8. Sharding in microservices
+Common pattern:
+	Each microservice owns its own database
+ 	Sharding happens inside the service  *********
+	No cross-service joins
+Order Service
+ ├── Shard A
+ ├── Shard B
+ └── Shard C
+
+9. Real-world examples
+
+MongoDB: automatic sharding
+
+Cassandra: partition keys
+
+MySQL: application-level sharding
+
+Kafka: topic partitions (sharding for streams)
+
+10. Challenges with sharding
+
+⚠ Cross-shard joins
+⚠ Distributed transactions
+⚠ Complex queries
+⚠ Operational complexity
+==========================================================================
+naveen.manchanda@nagarro.com
+rajat.sharma04@nagarro.com
+
+Docker Login - 
+docker login -u utkarshnagarro
+
+docker login -u neelampl
+ 
+pass: nee#March@26
+ 
+Docker build image - 
+docker build -t utkarshnagarro/login-backend:1.0.0 .
+
+docker build -t neelampl/user-0.0.1 .
+---------------------------------------------------------
+create repository on docker 
+- https://hub.docker.com/repositories/neelampl
+	- push the image on docker hub
+---------------------------------------------------------------------------------
+Step 2: Tag your image
+
+Docker images need to be tagged with your Docker Hub username to push them.
+The format is:
+
+<dockerhub-username>/<repository-name>:<tag>
+
+
+Example: if your Docker Hub username is neelam123 and you want to push user-app:latest:
+
+docker tag user-frontend-app:latest neelampl/user-frontend-app:latest
+
+docker tag user-app:latest neelam123/user-app:latest
+
+You can also tag user-user-app similarly:
+
+docker tag user-user-app:latest neelam123/user-user-app:latest
+
+Step 3: Push the image to Docker Hub
+docker push neelampl/user-app:latest
+docker push neelam123/user-app:latest
+docker push neelampl/user-frontend-app:latest
+
+Or for the other image:
+
+docker push neelam123/user-user-app:latest
+
+| Part        | Meaning                                                                                                                                                               |---------------------------------------------------------------------------------------------------------------------------------------------------------------------    |
+| `neelam123` | Your Docker Hub username. It identifies your account on Docker Hub.                                                                                                   |
+| `user-app`  | The repository name on Docker Hub where the image will be stored. You must create this repository first.                                                              |
+| `latest`    | The **tag** of the image. Tags are like version labels. `latest` is the default tag if you didn’t specify one. You could also use something like `v1.0`, `v1.1`, etc. |
+
+
+
+This uploads your image to Docker Hub.
+
+Once complete, you can see it in your Docker Hub account online.
+---------------------
+Important:
+
+No rebuild is needed after pushing. The image is already built.
+
+You only rebuild if:
+
+You change the Dockerfile
+
+You change your application code and want a new image.
+
+Example workflow
+
+Build → docker build -t user-app:latest .
+
+Tag → docker tag user-app:latest neelam123/user-app:latest
+
+Push → docker push neelam123/user-app:latest
+
+Done ✅
+
+Later, if someone else wants to run your app:
+
+docker pull neelam123/user-app:latest
+docker run -p 8080:8080 neelam123/user-app:latest
+
+
+They don’t need to build anything. They get the fully built image from Docker Hub.
+------------------------------------------------
+
+Step 3: Test pulling the image
+
+On the same machine (or another machine):
+
+docker pull neelampl/user-app:latest
+docker run -p 8080:8080 neelampl/user-app:latest
+
+
+This ensures that the image is usable from Docker Hub.
+----------------------------------------------------------------
+
+------------------------------------------------------------------------------------
+- mvn clean package
+- docker build -t user-frontend-app .
+- docker run -d -p 8081:8081 --name user-container user-frontend-app
+- docker run -d -p 8081:8081 --name user-container-v2 user-frontend-app
+- docker rm -f user-container-v2
+
+- docker logs user-container-v2
+- mvn clean package
+
+- docker exec -it mysql-db mysql -u root -p
+CREATE DATABASE userdb2;
+
+Remove old containers and networks:
+docker-compose down -v
+docker system prune -f
+
+docker compose up --build
+
+
+--------------------------------------------------------------------------------------
+- open wsl terminal
+	-wsl
+- neelam@IN-FQ0DX64:/mnt/c/Users/kmpatel/music/Bench Training/user/user$ docker build -t user-app .
+
+- docker images
+
+- docker run -d -p 8080:8080 --name user-container user-app
+
+- docker ps  : show running container
+- docker ps -a : show stop container
+
+- docker run -d -p 8080:8080 --name user-container user-app
+- docker rm -f user-container
+
+
+- docker logs user-container  : find out why it is stopped
+
+🔍 Step 2: Check MySQL logs
+docker logs mysql-db
+
+docker stop user-container
+docker rm user-container
+
+docker compose up --build
+
+
+3️⃣ Restart containers
+docker compose build
+# OR
+docker build -t user-app .
+
+docker logs user-service | grep Hibernate
+
+docker logs backend-service -f: check backend log 
+
+docker exec -it mysql-db mysql -uroot -proot userdb3  : check MySQL log
+select * from users;
+
+-------------------------------------------------------------------
+
+- mvn clean package
+--------------------------------------------------------------------------------------------------------------------------
+=====================================================================================================================================
+										Docker Notes
+Java 17
+
+Spring Boot JAR
+
+Port 8080
+
+✅ STEP 1: Build Spring Boot JAR (HOST MACHINE)
+
+Go to your project root (where pom.xml is):
+
+mvn clean package
+
+
+✔ This creates:
+
+target/<your-app-name>.jar
+
+✅ STEP 2: Create Dockerfile
+
+Create a file named Dockerfile (no extension):
+
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
+COPY target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","app.jar"]
+
+✅ STEP 3: Build Docker Image
+
+Run inside project root:
+
+docker build -t user-service .
+
+
+Verify:
+
+docker images
+
+✅ STEP 4: Run Docker Container
+docker run -d \
+  --name user-service \
+  -p 8080:8080 \
+  user-service
+
+
+Verify:
+
+docker ps
+
+✅ STEP 5: Check Logs
+docker logs user-service
+
+
+Look for:
+
+Tomcat started on port 8080
+
+✅ STEP 6: Test Application
+
+From browser or Postman:
+
+http://localhost:8080/<your-api>
+
+
+or terminal:
+
+curl http://localhost:8080
+
+mvn spring-boot:run
+
+you MUST rebuild the JAR
+mvn clean package 
+java -jar target/your-app-name.jar
+
+
+mvn clean : #delete the target folder
+mvn spring-boot:run : # Compile and run the Spring Boot app, without needing to package it into a JAR first.
+
+sudo lsof -i :8080  : # if show error port is already used.
+
+=====================================================================================================================================
+								SOLID Principle
+
+--------------------------------------------		
+🔷 Composition is Safer
+
+Composition means:
+“HAS-A relationship”
+Example:
+		class Engine {
+			void start() {}
+		}
+
+		class Car {
+			private Engine engine;
+
+			Car(Engine engine) {
+				this.engine = engine;
+			}
+
+			void start() {
+				engine.start();
+			}
+		}
+✔ Loose coupling
+✔ More flexible
+✔ Easier to maintain
+
+| Situation                  | Use         |
+| -------------------------- | ----------- |
+| Define contract            | Interface   |
+| Reuse behavior             | Composition |
+| Multiple implementations   | Interface   |
+| Runtime behavior change    | Composition |
+| Avoid inheritance problems | Composition |
+| Follow DIP                 | Interface   |
+| HAS-A relationship         | Composition |
+| CAN-DO capability          | Interface   |
+
+------------------
+In Spring Framework, most design uses:
+	Dependency Injection
+	Interfaces
+	Composition
+		
+------------------------------------
+						
+🔥 Golden Interview Line
+
+Inheritance creates strong coupling and requires maintaining behavioral contracts like LSP.
+Composition and delegation promote loose coupling and are more flexible and safer.
+That’s why modern design prefers composition over inheritance.
+
+This line is very impressive in interviews 💪
+-----------------------------------------------------------								
+								
+| Inheritance           | Composition        |
+| --------------------- | ------------------ |
+| IS-A relationship     | HAS-A relationship |
+| Tight coupling        | Loose coupling     |
+| Hard to change        | Easy to change     |
+| Risk of LSP violation | No LSP risk        |
+| Deep hierarchy issues | Flat and flexible  |
+
+								
+
+- OOP = features
+- SOLID = design guidelines for using those features correctly			
+
+| SOLID Principle | Connected OOP Concept      |
+| --------------- | -------------------------- |
+| SRP             | Encapsulation              |
+| OCP             | Inheritance + Polymorphism |
+| LSP             | Inheritance correctness    |
+| ISP             | Abstraction                |
+| DIP             | Abstraction + Polymorphism |
+
+🎯 Final Understanding
+
+OOP gives you:
+	Classes
+	Interfaces
+	Inheritance
+	Polymorphism
+
+SOLID tells you:
+	How to structure them correctly
+	How to avoid tight coupling
+	How to write maintainable code
+----------------------------------------------------------------------------					
+								
+| Principle | Meaning                        |
+| --------- | ------------------------------ |
+| SRP       | One class → one responsibility |
+| OCP       | Extend without modifying       |
+| LSP       | Child must behave like parent  |
+| ISP       | Small interfaces               |
+| DIP       | Depend on abstraction          |
+								
+-------------------------------------------------------------------------------------------------------------
+- LSP: Derived class must be replaceable with base class without breaking behavior.
+
+interface Bird {}
+interface FlyingBird extends Bird {
+    void fly();
+}
+- FlyingBird inherits the identity of Bird  *************
+🔥 Big Picture
+Even if the parent interface has no methods:
+	It still defines a type hierarchy
+	It still enables polymorphism
+	It still supports LSP
+	It still allows grouping related objects
+- An interface with no methods is often called a marker interface.
+
+🔷 Rule in Java (Very Important)
+A child class method cannot throw a new checked exception that is not declared in the parent class method.
+Because if it does → it breaks substitution → violates LSP.
+-------------------------------------------------------------------------------------------------------------
+🔷 6. What is Dependency Inversion Principle (DIP)?
+❓ Interview Question:
+
+Explain DIP in Spring Boot context.
+
+✅ Answer:
+
+High-level modules should not depend on low-level modules.
+Both should depend on abstractions.
+
+❌ Bad Example:
+class OrderService {
+    private MySQLDatabase db = new MySQLDatabase();
+}
+
+Tightly coupled ❌
+
+✅ Good Example:
+interface Database {}
+class MySQLDatabase implements Database {}
+
+class OrderService {
+    private Database db;
+
+    OrderService(Database db) {
+        this.db = db;
+    }
+}
+
+Now:
+Can inject MySQL
+Can inject MongoDB
+Can inject Mock DB for testing
+👉 This is what Spring Dependency Injection does internally.
+
+🔷 7. Why SOLID is important in Microservices?
+✅ Answer:
+
+In microservices:
+	SRP → One service one responsibility
+	OCP → Easy to extend features
+	LSP → Better inheritance design
+	ISP → Smaller APIs
+	DIP → Loose coupling between services
+
+Without SOLID:
+	Tight coupling
+	Hard testing
+	Hard scaling
+	Code becomes messy
+
+🔷 8. What happens if we don’t follow SOLID?
+Answer:
+	Spaghetti code
+	Hard to test
+	Hard to extend
+	More bugs
+	Tight coupling
+	High maintenance cost
+
+🔷 9. Real Spring Boot Example Question
+❓ Why do we use @Autowired?
+
+Because it supports:
+✔ Dependency Inversion Principle
+✔ Loose coupling
+✔ Better testability								
+ 

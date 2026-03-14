@@ -1,0 +1,1150 @@
+aws
+Hibernate/Spring JPA
+Microservices
+docker
+kafka
+Concurrent design and multithreading(Capable)
+solid principle
+java 17, 8
+spring security jwt, OAuth
+design pattern: singleton, double check locking, factory, proxy, adaptor
+locking
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==========================================================
+rds pass: neelampatel
+
+- An IAM Role provides temporary permissions to AWS services so they can access other AWS resources without using access keys.
+
+- how to connect RDS with our spring boot application which is running on EC2
+	- Store the database credential in secret manager. select db instance.
+	- create IAM role attach secretmanager policy to that role.
+	- Attach IAM role to EC2.
+	- Add SDK dependency in pom file 
+	
+- How to create RDS instance?
+		- search RDS in AWS console.
+		- create database
+		- choose database engine
+		- choose template (production, dev/test, free tire)
+		- configure setting (db instance name, username, password)
+		- connectivity (vpc(virtual private network) default or custom vpc for production)
+		- configure instance (t3 micro)
+		
+✔ Production best practice
+Database should not live inside application container.
+
+- If your Spring Boot app is running on EC2 and you want to connect it to S3?
+	- create IAM role.
+	- attach IAM role to EC2
+	- add SDK dependency in pom file 
+	- no secret key is needed in property file only define reason and bucket name.
+	- create s3ClientBean in configuration class.
+	- 
+	
+- How to create ec2 instance?
+	- choose OS (ubencu, linux)
+	- select instance type (t2 micro) define cpu and ram
+	- configure security group 
+		- inbound rule(incomming traffic) 
+			rule 1) FTP port 22 for login to server
+			rule 2) port 8080 for our java application 
+		- outbound rule(outgoing traffic)
+	- configure key pair (choose .pem formate) to login	or to connect with ec2 don't need IAM user credential.
+
+- If your spring boot application is running on local and I want to connect it to s3, I want to upload some file from local to s3?
+	- I need access key , secret key, reason, bucket name in properties file.
+	- add sdk dependency in pom file
+	- create s3Client bean.
+	- for access key and secret key we have to create user assign that user to a particular group , go inside that user click on "create access key"
+		then we can find access key and secret key.
+	- go to inside that bucket, create folder then click on "add file" from our local system.	
+		
+- How to create s3 bucket?
+	- search s3 in aws console , give bucket name should be globally unique,
+	- select general purpose bucket(for multiple availability zone) or directory(for single availability zone)
+	- select reason like Asia pecific Mumbai or US East  ***
+	- enable block public access to make the bucket private
+	- enable versioning.
+	
+- What is reason?
+	- reason is geographical location where aws has multiple data centers.
+	- each reason is completely isolated from other reason.
+	- ex: Asia Pecific (Mumbai), US East, Europe.
+====================================================================================================================================
+
+
+
+
+
+
+
+
+
+----------
+- How to create AWS RDS instance?
+✅ Method 1: Create RDS via AWS Console (Beginner Friendly)
+Step 1: Log in
+
+Go to the AWS Management Console
+Search for RDS in the services bar.
+
+Step 2: Click “Create database”
+
+		You’ll see two options:
+		✅ Standard create (more control)
+		Quick create (basic setup)
+		Choose Standard create.
+
+Step 3: Choose Database Engine
+
+	Select one:
+
+	MySQL
+
+	PostgreSQL
+
+	MariaDB
+
+	Oracle
+
+	SQL Server
+
+	Example: Choose MySQL
+
+Step 4: Choose Template
+
+	Production
+
+	Dev/Test (cheaper)
+
+	Free tier (for practice)
+
+	For learning → choose Free tier.
+
+Step 5: Configure Settings
+
+	Fill in:
+	DB instance identifier → mydatabase
+	Master username → admin
+	Master password → Create strong password
+	⚠ Save this password securely.
+
+Step 6: Instance Configuration
+	DB instance class → db.t3.micro (Free tier eligible)
+	Storage → 20 GB (default is fine for practice)
+
+Step 7: Connectivity
+	Choose:
+	VPC (default is fine)
+	Public access:
+	❌ No (recommended for production)
+	✅ Yes (if you want to connect from local machine)
+	Security group:
+	Allow port:
+	3306 (MySQL)
+	5432 (PostgreSQL)
+
+For production:
+	We usually create a custom VPC
+	With public and private subnets
+
+Step 8: Create Database
+
+	Click Create database
+	⏳ It takes 5–10 minutes.
+	Status will change from:
+	Creating → Available
+
+🔗 Step 9: Connect to RDS
+
+You can connect using:
+
+MySQL Workbench
+
+psql (PostgreSQL)
+
+	From an Amazon EC2 instance
+		You’ll need:
+		Endpoint (shown in RDS dashboard)
+		Username
+		Password
+		Port
+		Example:
+		mysql -h your-endpoint.amazonaws.com -u admin -p
+
+----------------------------------------------------
+🔗 How to Connect RDS with Spring Boot (EC2)
+
+	After RDS is available:
+	Go to RDS → Databases
+	Copy Endpoint
+
+Example:
+mydb.abc123xyz.ap-south-1.rds.amazonaws.com
+
+Add in application.properties:
+	spring.datasource.url=jdbc:mysql://<endpoint>:3306/ecommerce
+	spring.datasource.username=admin
+	spring.datasource.password=password123
+
+🔐 Important Production Setup
+
+If Spring Boot runs on:
+
+👉 Amazon EC2
+Then:
+
+	RDS should NOT be public
+	Put RDS in private subnet
+	Allow port 3306 only from EC2 Security Group
+	
+Option 1: Environment Variables (Simple & Good)
+	Instead of putting password in properties file:
+	application.properties	
+	
+	spring.datasource.username=${DB_USERNAME}
+	spring.datasource.password=${DB_PASSWORD}
+Set in EC2:
+	export DB_USERNAME=admin
+	export DB_PASSWORD=strongpassword
+	
+🥇 Option 2: AWS Secrets Manager (Best Practice)
+
+Use:
+
+👉 AWS Secrets Manager
+
+Steps:
+	Store DB credentials in Secrets Manager
+	Attach IAM role to EC2
+	Spring Boot fetches secret at runtime
+	✔ Automatic rotation
+	✔ Encrypted
+	✔ Enterprise-level security	
+
+🥇 Option 3: IAM Database Authentication (Very Advanced & Secure) ******
+
+RDS supports IAM authentication.
+Instead of password:
+	Generate temporary token
+	Valid for 15 minutes
+	No stored password
+
+Best for high-security production systems.
+-------------------
+✅ PART 1: Store DB Credentials in Secrets Manager
+Click Store a new secret
+👉 Credentials for RDS database
+Then enter:
+Username → admin
+Password → yourStrongPassword
+
+✅ PART 2: Give EC2 Permission to Access Secret
+
+Your Spring Boot app runs on:
+
+👉 Amazon EC2
+
+We must give EC2 permission.
+
+🔹 Step 3: Create IAM Role
+Attach policy: SecretsManagerReadWrite
+
+SecretsManagerReadWrite
+Step 4: Attach Role to EC2
+
+✅ PART 3: Fetch Secret in Spring Boot
+🔹 Step 8: Add Dependency (sdk) in pom
+--------------------------
+----------------------------------------------------------------------------
+- If your Spring Boot app is running on EC2 and you want to connect it to S3,
+		Use IAM Role (👉 No access key, 👉 No secret key in code)
+		🔐 Step 1: Create IAM Role for EC2
+		 	Step 2: Attach IAM Role to EC2
+			📦 Step 3: Add AWS SDK Dependency in Spring Boot
+			⚙ Step 4: Configure S3 Client Bean
+		------------------------------------------------------	
+			
+✅ BEST PRACTICE (Production Way)
+
+👉 Use IAM Role (NOT Access Key in code)
+🔐 Step 1: Create IAM Role for EC2
+
+Go to IAM → Roles
+
+Click Create Role
+
+	Choose:
+	Trusted entity → AWS Service
+	Use case → EC2
+	Attach permission policy:  ***
+		AmazonS3FullAccess (for testing)
+		OR custom policy for specific bucket (recommended)
+	Name role:
+		EC2-S3-Access-Role
+	Create role
+
+🔗 Step 2: Attach IAM Role to EC2
+
+	Go to EC2 → Instances
+	Select your instance
+	Click:
+		Actions → Security → Modify IAM Role***
+	Attach:
+	EC2-S3-Access-Role
+	Now your EC2 can securely access S3.
+	No secret key needed in application.properties ❌
+
+📦 Step 3: Add AWS SDK Dependency in Spring Boot
+
+⚙ Step 4: Configure S3 Client Bean
+@Configuration
+public class S3Config {
+
+    @Bean
+    public S3Client s3Client() {
+        return S3Client.builder()
+                .region(Region.AP_SOUTH_1)
+                .build();
+    }
+}
+Notice:
+👉 No access key
+👉 No secret key
+Because EC2 IAM Role automatically provides credentials.
+
+-------------------------------------------------------------------------------------------------------------------------------
+To create an EC2 instance, we select an AMI, choose instance type(t2 micro), configure key pair, set security group rules, configure storage, 
+and launch the instance. After launching, we connect using SSH and deploy our application.
+
+Instance type defines CPU & RAM.
+Key Pair is used to SSH into your server.
+	⚠ Without key pair, you cannot login. 
+	Choose format → .pem  ***
+
+AMI = Amazon Machine Image (OS template)
+	Common options:
+	Amazon Linux
+	Ubuntu
+	
+attach security group to that instance.
+---------------------------------------------------
+You deploy a Spring Boot app on EC2 that runs on port 8080.
+If your Security Group has this rule:
+| Type       | Port | Source    |
+| ---------- | ---- | --------- |
+| Custom TCP | 8080 | 0.0.0.0/0 |
+
+
+Then:
+👉 Anyone on internet can access
+http://public-ip:8080
+If you do NOT add port 8080 in inbound rules:
+👉 Your application will run
+👉 But nobody can access it from browser
+
+What is a Security Group in AWS?
+
+In Amazon Web Services, a Security Group is a virtual firewall that controls inbound and outbound traffic to your resources like:
+	Amazon EC2
+	Amazon RDS
+	Amazon ECS
+
+Simple Definition
+	A Security Group controls who can access your AWS resource and on which port.
+
+How It Works
+
+Security Groups contain rules:
+️⃣ Inbound Rules (Incoming Traffic)
+	Controls who can connect to your server.
+		Example:
+		Allow HTTP → Port 80 → From anywhere (0.0.0.0/0)   // means Allow access from any IP address in the world
+		Allow SSH → Port 22 → Only from your IP  // SSH is used to log in to your server.  
+
+2️⃣ Outbound Rules (Outgoing Traffic)
+	Controls where your server can send data.
+
+You must allow:
+
+| Type       | Port | Purpose                  |
+| ---------- | ---- | ------------------------ |
+| HTTP       | 80   | Website access           |
+| Custom TCP | 8080 | Spring Boot default port |
+| SSH        | 22   | Server login             |
+
+Without opening port 8080 → your app will not be accessible.
+
+Important Characteristics
+	✔ Security Groups are stateful
+	→ If inbound traffic is allowed, response traffic is automatically allowed.
+	✔ They work at instance level
+	✔ You can attach multiple instances to one security group
+
+Interview Answer (Short Version)
+	A Security Group in AWS is a stateful virtual firewall attached to resources like EC2 that controls inbound and outbound traffic 
+	based on defined rules such as port number, protocol, and IP address.
+
+Difference: Security Group vs NACL (Very Important Interview Question)
+| Security Group          | NACL                  |
+| ----------------------- | --------------------- |
+| Works at instance level | Works at subnet level |
+| Stateful                | Stateless             |
+| Allows rules only       | Allows & Denies rules |
+
+----------------------------------------------------------------------------------------------------
+What is a Region in AWS?
+	In Amazon Web Services (AWS), a Region is a geographical location where AWS has multiple data centers.
+	Each region is completely isolated from other regions.
+
+Example of AWS Regions
+	Asia Pacific (Mumbai)
+	US East (N. Virginia)
+	Europe (Frankfurt)
+
+Each region has its own:
+Data centers
+----------------------------------------------------------------------------------------------------
+- how to connect your spring boot app which is running on your local system with s3?
+What is SDK?
+
+SDK stands for Software Development Kit.
+	It is a collection of libraries, tools, documentation, and APIs that help developers connect their (spring boot app)application with a 
+	specific platform or service. In AWS Context
+
+When you connect a Spring Boot application to Amazon S3, you use the:*****
+👉 Amazon Web Services SDK
+
+Add sdk dependency in pom file.
+put access key, secret key, reason and bucket name in property file 
+create aws3client bean method in configuration class.
+ 
+For access key and secret key we have to create user and put that user into particular group. Go inside that user and click on “create access key”. 
+Use case section choose “local code”. 
+---------------------------------------------------------------------------------------
+“How do you create an S3 bucket and what configurations do you choose?”
+
+You say:
+
+“In the AWS Console, I go to S3 and click Create Bucket. I choose a General Purpose bucket or Directory(for single availability zone), 
+provide a globally unique name, select the appropriate region like ap-south-1, and keep the bucket private by enabling block public access. 
+I enable versioning for data protection and use server-side encryption. Since S3 is multi-AZ by default, I don’t manually select Availability Zones.”
+
+- for storing image in that bucket got to bucket then create folder then in that folder we can add file.
+
+------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You have thousands of product images and you want to upload them to AWS S3 in bulk using a Spring Boot application (maybe during import / migration / cron job).
+
+1️⃣ Add Dependency (AWS SDK v2 – Recommended)
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>s3</artifactId>
+</dependency>
+
+2️⃣ Add AWS Credentials
+Option 1 — application.properties
+cloud.aws.region=ap-south-1
+aws.accessKey=YOUR_ACCESS_KEY
+aws.secretKey=YOUR_SECRET_KEY
+aws.s3.bucket=my-image-bucket
+
+
+(⚠️ In Production: Use IAM Role, not hardcoded keys)
+
+3️⃣ Create S3 Configuration Bean
+@Configuration
+public class AwsS3Config {
+
+    @Value("${cloud.aws.region}")
+    private String region;
+
+    @Value("${aws.accessKey}")
+    private String accessKey;
+
+    @Value("${aws.secretKey}")
+    private String secretKey;
+
+    @Bean
+    public S3Client s3Client() {
+        return S3Client.builder()
+            .region(Region.of(region))
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKey, secretKey)
+                )
+            )
+            .build();
+    }
+}
+
+4️⃣ Create Service to Upload Bulk Images
+@Service
+public class BulkImageUploadService {
+
+    @Autowired
+    private S3Client s3Client;
+
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
+
+    public List<String> uploadImages(List<MultipartFile> files) {
+        List<String> uploadedUrls = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            try {
+                String key = "products/" + System.currentTimeMillis() + "-" + file.getOriginalFilename();
+
+                PutObjectRequest request = PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .acl(ObjectCannedACL.PUBLIC_READ)   // Optional: Makes public
+                        .contentType(file.getContentType())
+                        .build();
+
+                s3Client.putObject(request, RequestBody.fromBytes(file.getBytes()));
+
+                String fileUrl = "https://" + bucketName + ".s3.amazonaws.com/" + key;
+                uploadedUrls.add(fileUrl);
+
+            } catch (IOException e) {
+                throw new RuntimeException("Error uploading file: " + file.getOriginalFilename());
+            }
+        }
+
+        return uploadedUrls;
+    }
+}
+
+5️⃣ Expose REST API for Bulk Upload
+@RestController
+@RequestMapping("/api/images")
+public class ImageUploadController {
+
+    @Autowired
+    private BulkImageUploadService uploadService;
+
+    @PostMapping("/bulk")
+    public ResponseEntity<List<String>> uploadMultipleFiles(
+            @RequestParam("files") List<MultipartFile> files) {
+
+        List<String> uploadedUrls = uploadService.uploadImages(files);
+        return ResponseEntity.ok(uploadedUrls);
+    }
+}
+
+6️⃣ Test in Postman
+POST URL
+POST http://localhost:8080/api/images/bulk
+
+Body → form-data
+Key	Type	Value
+files	File	select multiple images
+
+✔ You’ll receive a list of uploaded S3 URLs.
+
+⚡ Optimization for Large Files (Multipart Upload)
+
+If your images are large (>5MB), use Amazon TransferManager for faster parallel upload.
+
+But for bulk small files (e-commerce images), the above code works fine.
+
+Architecture
+Client → Spring Boot → Upload to S3 → Return S3 URLs → Store URL in DB → UI loads images via CloudFront
+
+=========================================================================================================================================
+							Docker Notes
+
+- What is a Bind Mount?
+A bind mount connects a folder from your host machine directly into a container.
+Example from your compose file:
+volumes:
+  - ./backend/logs:/app/logs
+This means:
+	Host folder → ./backend/logs
+	Container folder → /app/logs
+	So both point to the same physical directory on your system.	
+	
+-------------------------------------------
+1️⃣ What data does the logs folder contain?
+The logs folder stores application runtime information. These logs help developers monitor and debug the application.
+Typical log data includes:
+1. Application events
+	Information about what the application is doing.
+	
+2026-03-05 10:15:20 INFO Application started successfully
+2026-03-05 10:16:10 INFO User login successful	
+	
+✅ 1. Logs are not lost
+If the container stops or is deleted, logs remain on the host machine.
+✅ 2. Easy debugging
+Developers can directly check logs on the host.
+✅ 3. Log monitoring tools
+External tools like ELK, Grafana, etc. can read logs from the host.	
+	
+--------------------------------------------------------------------	
+- Containers can share data using Docker volumes, bind mounts, or by communicating over networks. The most common and production-ready 
+method is using named volumes for file-based sharing or using external services like databases for scalable data sharing. 
+In microservices architecture, network-based communication is preferred over direct filesystem sharing.
+							
+- I used a multi-stage build to separate compilation and runtime environments. The builder stage uses JDK to compile the application, 
+while the runtime stage uses JRE to minimize image size and reduce attack surface. I created a non-root user to follow the least privilege 
+principle and used Alpine base image for lightweight deployment. This results in a secure, optimized, and production-ready container image.
+
+❓ What is advantage of multiple containers from same image?
+		Load balancing
+		Fault tolerance
+		High availability
+		Microservices scaling
+		
+Browser → localhost:8081 → Container1:8080
+Browser → localhost:8082 → Container2:8080
+
+If multiple containers expose same port:
+	-p 8080:8080
+You cannot run 2 containers mapping same host port. **
+	Solution:
+	backend1 → 8081:8080
+	backend2 → 8082:8080
+	Or use reverse proxy (Nginx).
+--------------------------------------	
+1️⃣ Environment Consistency (No “It Works on My Machine”)
+Without Docker:
+	Dev machine
+	Test server
+	Production server
+
+All may have different:
+
+	OS versions
+	Java versions
+	Libraries
+
+With Docker:
+	Same image runs everywhere.
+	Same behavior in dev, test, prod.
+---------------------------------------
+2️⃣ Lightweight Compared to VMs
+Docker containers:
+	Share host OS kernel
+	Start in seconds
+	Use less RAM
+Unlike:
+	Virtual Machines (VMs) which need full OS per instance.
+Example:
+	VM = ~1–2 GB RAM
+	Docker container = few MBs
+----------------------------------	
+	
+️⃣ Faster Deployment
+Start container:
+	docker run my-app
+	App runs in seconds.
+No need to:
+	Install Java
+	Install MySQL
+	Configure environment manually
+
+🟢 With Docker on EC2
+Steps become simpler.
+Step 1
+Install Docker once on EC2.
+Step 2
+Run your container.
+	docker run my-app
+- Docker image already contains everything
+
+
+4️⃣ Portability
+Docker image runs on:
+	Local machine
+	Cloud VM
+	CI/CD pipeline
+	Kubernetes cluster
+	Build once → Run anywhere.
+	
+5) Easy scalling	
+Run multiple containers from same image:
+
+docker-compose up --scale backend=3
+Used for:
+	High availability
+	Load balancing
+	Microservices	
+
+6️⃣ Isolation
+
+	Each container:
+	Has its own filesystem
+	Own network
+	Own process space
+	If one crashes:
+	Others continue running
+	Good for microservices architecture.
+-----------------------------
+❓ Can containers share data?
+Not by default.
+To share data:
+	Use volumes
+	Or network communication
+	Or external database
+		
+--------------------------------------------------------------							
+- you can run one image inside multiple containers.							
+- Running instance of an image
+							
+Image = Class
+Container = Object
+
+- create docker image from dockerfile and run it ( docker run) in one or more than one container.
+- containers are isolated environments that run the application specified in the image.
+- image are static, immutuable artifacts while container are dynamic running instance that can be started, stoped and destroyed.
+
+
+
+--------------------------------------------------------------
+🔹 1️⃣ Docker Compose Basics
+❓ What is version: "3.8"?
+
+Answer:
+It defines the Docker Compose file format version.
+3.8 supports:
+
+secrets
+
+healthcheck
+
+depends_on conditions
+
+security options
+
+❓ Difference between image and build?
+image: mysql:8.0
+build: ./backend
+
+
+Answer:
+
+image → Pulls pre-built image from Docker Hub
+
+build → Builds image from Dockerfile locally
+
+❓ Why use container_name?
+
+To assign a fixed container name instead of random one.
+-------------------------------------------
+🔹 2️⃣ Secrets & Security Questions
+❓ Why use Docker Secrets instead of environment variables?
+
+Answer:
+Environment variables:
+
+Visible in docker inspect
+
+Can be exposed accidentally
+
+Secrets:
+
+Mounted as file
+
+Stored in /run/secrets
+
+Not exposed in environment
+
+More secure.
+
+❓ Why base64 decoding?
+	cat /run/secrets/mysql_root_password | base64 -d
+	Base64 is:
+	Just encoding
+	Used to avoid plain text storage.
+	You can say:
+	For production, we should use proper secret managers like AWS Secrets Manager or Vault.
+
+❓ What does this do?
+security_opt:
+  - no-new-privileges:true
+
+
+Prevents container from gaining extra privileges(विशेषाधिकार) via setuid binaries.
+
+❓ What is cap_drop: - All? : reduces attack surface*****
+	Linux containers have capabilities like:
+	NET_ADMIN
+	SYS_ADMIN
+	Dropping all reduces attack surface. 
+	This is strong security hardening.
+-------------------------
+🔹 3️⃣ Networking Questions
+❓ Why use custom network app-net?
+	Docker automatically creates DNS inside network.
+	Backend can connect to MySQL using:
+	mysql
+
+Instead of IP address.
+
+❓ Why not use localhost?
+	Inside container:
+	localhost means itself
+	Not another container
+--------------------------------------
+🔹 4️⃣ MySQL Related Questions
+❓ Why add healthcheck?
+healthcheck:
+  test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+
+	Because:
+	depends_on alone does not ensure DB is ready
+	Healthcheck ensures MySQL is fully started
+
+❓ What does this do?
+depends_on:
+  mysql:
+    condition: service_healthy
+
+
+Backend starts only after MySQL is healthy.
+Prevents connection failure at startup.
+
+
+❓ What is ELK stack?
+E → Elasticsearch
+L → Logstash (you replaced with Fluent Bit)
+K → Kibana
+Used for:
+•	Log collection
+•	Searching
+•	Monitoring
+•	Visualization
+________________________________________
+❓ Why use Fluent Bit instead of Logstash?
+Fluent Bit:
+•	Lightweight
+•	Lower memory usage
+•	Faster
+Good for Docker environments.
+
+📝 Fluent Bit (Log Shipper)
+fluent-bit:
+  image: fluent/fluent-bit:2.2
+Runs Fluent Bit
+Purpose:
+•	Reads Docker container logs  ********
+•	Sends them to Elasticsearch
+❓ Why use Fluent Bit instead of Logstash?
+Fluent Bit:
+•	Lightweight
+•	Lower memory usage
+•	Faster
+Good for Docker environments.
+
+❓ How logs flow?
+Explain like this:
+	Docker containers
+		  ↓
+	Fluent Bit
+		  ↓
+	Elasticsearch
+		  ↓
+	Kibana (UI)
+
+🔹 6️⃣ Volume Questions
+❓ What is difference between bind mount and named volume?
+- mysql-data:/var/lib/mysql
+
+
+Named volume:
+
+	Managed by Docker
+
+	Persistent
+
+	Portable
+
+	- ./backend/logs:/app/logs
+
+
+Bind mount:
+
+	Uses host folder
+
+	Direct access from host
+---------------------------------------
+🔹 7️⃣ Performance Questions
+❓ What happens if MySQL container crashes?
+
+Data remains safe in: mysql-data volume
+
+❓ How to scale backend?
+
+You can say:
+
+docker-compose up --scale backend=3
+
+
+But need:
+
+Load balancer (like Nginx)
+
+Stateless app	
+----------------------------------------
+🔹 🔟 Architecture Question
+
+They may ask:
+
+❓ Explain your complete architecture.
+
+You should say confidently:
+
+I built a secure Dockerized microservices architecture with:
+Spring Boot backend
+MySQL database
+Secure secret management
+Health checks
+
+	Linux capability hardening
+
+	Centralized logging using Elasticsearch, Kibana and Fluent Bit
+
+	Persistent storage using Docker volumes
+
+	Isolated internal network	
+	
+	
+
+
+=======================================================================================
+# -------- Build stage --------
+FROM eclipse-temurin:17-jdk-alpine AS builder
+WORKDIR /build
+
+# Copy project files
+COPY . .
+
+# Build the application
+RUN ./mvnw clean package -DskipTests
+
+# -------- Runtime stage --------
+FROM eclipse-temurin:17-jre-alpine
+
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy only the jar from builder
+COPY --from=builder /build/target/*jar app.jar
+
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+EXPOSE 8082
+
+ENTRYPOINT ["java","-jar","app.jar"]
+
+----------------------------------
+			        Docker command
+Q: How do you run your full microservice application?
+	docker compose up -d
+Q: How do you rebuild the image after code changes?
+	docker compose up --build
+Q: How do you debug container issues?
+	I check logs using:
+	docker logs container_name
+--------------
+
+Check Container Resource Usage
+	docker stats
+Shows:
+CPU
+Memory
+Network	
+------------------
+1️⃣ Build Docker Image (using Dockerfile)
+- build backend image
+	docker build -t user-auth-backend ./backend
+
+| Part              | Meaning                      |
+| ----------------- | ---------------------------- |
+| docker build      | build docker image           |
+| -t                | tag image                    |
+| user-auth-backend | image name                   |
+| ./backend         | folder containing Dockerfile |
+
+---------------------------------------
+2️⃣ Run Container From Image
+	docker run -p 8082:8082 user-auth-backend
+-------------------------
+3️⃣ Build and Run All Services (docker-compose)
+docker compose up	
+----------------------
+4️⃣ Rebuild Images Using Compose
+If Dockerfile changes:
+	docker compose up --build
+--------------------------------
+5️⃣ Stop Containers
+docker compose down
+-----------------------
+6️⃣ See Running Containers
+docker ps
+-----------------------
+7️⃣ See All Containers
+docker ps -a
+-----------------------
+8️⃣ Check Container Logs: Useful for Spring Boot debugging.
+docker logs backend-service
+----------------------
+🔟 List Docker Images
+docker images
+-------------------------
+1️⃣1️⃣ Remove Container
+docker rm container_name
+---------------------
+docker rmi image_name
+----------------
+1️⃣5️⃣ Scan Image Vulnerability (Trivy)
+trivy image user-auth-project-backend
+-------------------------------
+Q: How do you persist MySQL data in Docker?
+Answer:
+	I use Docker named volumes to store MySQL data so that data is not lost when the container stops.
+Example:
+docker run -v mysql-data:/var/lib/mysql mysql:8
+-----------------------------
+Q: Why did you use bind mount for logs?
+Answer:
+- Bind mount allows logs generated inside container /app/logs to be stored on host machine ./backend/logs. 
+This helps developers access logs directly from the host.
+
+-------------------------
+	
+	
+	
+	
+
+
+1️⃣ FROM eclipse-temurin:17-jdk-alpine AS builder
+
+This line does two things.
+(a) Base Image
+	FROM tells Docker which base image to use.
+	eclipse-temurin:17-jdk-alpine
+	Meaning:
+| Part            | Explanation                                |
+| --------------- | ------------------------------------------ |
+| eclipse-temurin | OpenJDK distribution maintained by Eclipse |
+| 17              | Java version 17                            |
+| jdk             | Contains JDK (compiler + runtime)          |
+| alpine          | Lightweight Linux distribution             |
+
+
+(b) AS builder
+	This is used for Multi-stage builds in Docker.
+	It gives this stage a name:
+	builder
+	Later in the Dockerfile we can copy files from this stage.
+	Example:
+	COPY --from=builder /build/app.jar /app/app.jar
+	
+Why?
+Because:
+Stage 1 → build the application
+Stage 2 → run the application
+This keeps the final image smaller.	
+
+Step 1
+FROM eclipse-temurin:17-jdk-alpine AS builder
+
+Docker starts a container using Java 17 JDK Alpine image.
+
+Step 2
+WORKDIR /build
+
+Docker creates and moves to this directory inside the container:
+
+Step 3
+COPY . .
+This copies your entire project folder from the host machine into /build.
+
+Example host project
+project/
+ ├── pom.xml
+ ├── mvnw
+ ├── src/
+ └── target/
+
+Inside container it becomes:
+/build
+ ├── pom.xml
+ ├── mvnw
+ ├── src/
+ └── target/ (if already exists)
+
+
+2️⃣ When does the .jar file appear?
+After this command:
+	RUN ./mvnw clean package -DskipTests
+Maven builds the application and creates the .jar file.
+Result:
+/build/target/backend-0.0.1-SNAPSHOT.jar
+----------------------
+Q1: Why use jre instead of jdk in runtime stage?
+- Because the application is already compiled.
+- JRE contains only runtime libraries needed to run the application, making the image smaller and more secure.
+-------------------
+Q4: What is the benefit of multi-stage builds?
+	Multi-stage builds separate build environment (JDK) and runtime environment (JRE), which reduces final image size and improves security.
+
+create group
+create user
+copy jar
+give permission
+run container as appuser
+
+
+
+2️⃣ WORKDIR /build
+
+	WORKDIR sets the working directory inside the container.
+	Meaning:
+	All commands will run inside /build
+	
+COPY . .
+	Docker will copy files into:
+	/build
+	Inside the container.	
+	
+	
