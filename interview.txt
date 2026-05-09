@@ -1,3 +1,8 @@
+select Customers.first_name, Customers.last_name, Orders.item, Orders.*
+from Customers
+left join Orders 
+ON Customers.customer_id == Orders.customer_id  where Customers.first_name = "John" and Customers.last_name = "Doe";
+-----------------------------------------------------------------------------------------------------------------------
 🔹 Core Concepts (Must Know)
 1. What is multithreading and why is it used?
 Difference between process vs thread
