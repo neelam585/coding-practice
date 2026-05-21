@@ -1,0 +1,32 @@
+1️⃣ How does Spring Boot choose and apply auto-configurations automatically?
+2️⃣ What actually happens internally when we add spring-boot-starter-web?
+3️⃣ Why does Spring Boot follow the “Convention over Configuration” approach?
+4️⃣ How are application.properties files loaded during startup?
+5️⃣ Explain the complete startup lifecycle of a Spring Boot application.
+6️⃣ Difference between @SpringBootApplication and @ComponentScan?
+7️⃣ How is embedded Tomcat detected and configured automatically?
+8️⃣ What happens if multiple beans of the same type are present without @Qualifier?
+9️⃣ How does Spring Boot manage profile-based configurations?
+🔟 What is the purpose of SpringFactoriesLoader internally?
+
+1️⃣1️⃣ How did Spring Boot reduce dependency on XML configurations?
+1️⃣2️⃣ Internal difference between @Controller and @RestController?
+1️⃣3️⃣ How are dependency versions managed automatically in Spring Boot?
+1️⃣4️⃣ Explain the full lifecycle of a Spring Bean.
+1️⃣5️⃣ How does Spring Boot support externalized configuration?
+1️⃣6️⃣ What happens when both application.yml and application.properties exist together?
+1️⃣7️⃣ How does Spring Boot Actuator work internally?
+1️⃣8️⃣ Difference between a @Configuration class and a normal Java class?
+1️⃣9️⃣ How does Spring Boot auto-configure DataSource?
+2️⃣0️⃣ What are practical use cases of CommandLineRunner?
+
+2️⃣1️⃣ How does Spring Boot perform exception translation internally?
+2️⃣2️⃣ Difference between @EnableAutoConfiguration and @Import?
+2️⃣3️⃣ What happens internally when an auto-configuration class is excluded?
+2️⃣4️⃣ Why is Spring Boot widely used in microservices architecture?
+2️⃣5️⃣ Difference between executable/fat JAR and normal JAR?
+2️⃣6️⃣ How is logging configured by default in Spring Boot?
+2️⃣7️⃣ How does Spring Boot determine server port precedence?
+2️⃣8️⃣ What internal flow happens when a REST API endpoint is hit?
+2️⃣9️⃣ Why is Spring Boot considered suitable for cloud-native applications?
+3️⃣0️⃣ What are some common performance mistakes developers make in Spring Boot applications?
