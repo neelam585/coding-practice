@@ -1,0 +1,926 @@
+recent production issue 
+hybernate n+1 scenario based problem
+millions of record in a table how you will handle?
+- how to implement circuit breaker without rejlience4j ?
+1. What is JPA and how is it different from Hibernate?
+JPA = specification
+Hibernate = implementation
+✔ Why no-arg constructor?  Hibernate creates object using reflection.
+
+Q- update gender query ?
+ 
+
+2. What is ORM? Why do we use it?
+3. What is an Entity in JPA?
+4. What are annotations like @Entity, @Table, @Id?
+🔹 Persistence Context & Lifecycle (Very Important)
+5. What is Persistence Context?
+First-level cache
+6. What are entity states?
+Transient
+Persistent
+Detached
+Removed
+7. What is EntityManager?
+🔹 Caching (Frequently Asked)
+8. What is first-level cache?
+Default, per session
+9. What is second-level cache in Hibernate?
+Shared across sessions
+10. Difference between first-level and second-level cache?
+🔹 Fetching & Loading
+11. Difference between EAGER vs LAZY loading?
+12. What is LazyInitializationException?
+When does it occur?
+13. What is fetch join?
+🔹 Relationships
+14. Types of relationships:
+OneToOne
+OneToMany
+ManyToOne
+ManyToMany
+15. What is mappedBy?
+16. Difference between @JoinColumn and mappedBy?
+🔹 Transactions (Important)
+17. What is @Transactional?
+How it works internally?
+18. What is propagation in transactions?
+19. What is isolation level?
+🔹 Queries
+20. What is JPQL? -> DB independent , Hibernate converts it to SQL automatically
+Difference from SQL
+21. What is Native Query?  -> Complex queries
+22. What is Criteria API? -> Java code-based query ✅
+23. What is @Query annotation?
+🔹 Performance Issues (Very Important)
+24. What is N+1 problem?
+How to solve it?
+25. How do you optimize Hibernate performance?
+26. What is batch fetching?
+27. What is pagination in JPA? -
+🔹 Locking & Concurrency
+28. What is optimistic locking?
+@Version
+29. What is pessimistic locking?
+🔹 Advanced Topics
+30. What is dirty checking?
+31. What is cascading (CascadeType)?
+32. What is orphan removal?
+33. What is flush() vs commit()?
+34. What is difference between save() and saveAndFlush()?
+🔹 Spring Boot Specific
+35. What is Spring Data JPA?
+36. What is JpaRepository?
+37. Difference between CrudRepository and JpaRepository?
+38. What is projection in Spring Data JPA?
+🔹 Real-World Scenario Questions
+39. How do you handle large data in JPA?
+40. How do you fix slow queries in production?
+41. How do you debug Hibernate issues?
+🔹 Tricky Questions
+42. Why is LAZY loading preferred?
+43. Can we use JPA without Hibernate?
+44. What happens if we don’t use @Transactional?
+45. Database selection strategy
+- how to fetch lazy loaded data?
+- multiple spring boot application class is possible in a single application? 
+-------------------------------------------------------------------------
+👉 “Lazy-loaded data can be fetched using transactional access, JPQL fetch joins, entity graphs, DTO projections, 
+or explicit initialization while the Hibernate session is active.”
+
+@EntityGraph(attributePaths = "orders")
+Customer findById(Long id);
+-----------------------------------------------------------------------------
+✅ Corrected Version
+Employee Entity
+@Entity
+@Table(name = "employee")
+public class Employee {
+
+    @EmbeddedId
+    private EmployeeId employeeId;
+
+    // getters and setters
+}
+EmployeeId (Composite Key Class)
+@Embeddable
+public class EmployeeId implements Serializable {
+
+    private String name;
+    private String gender;
+
+    public EmployeeId() {
+    }
+
+    public EmployeeId(String name, String gender) {
+        this.name = name;
+        this.gender = gender;
+    }
+
+    // getters and setters
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof EmployeeId)) return false;
+        EmployeeId that = (EmployeeId) o;
+        return Objects.equals(name, that.name)
+                && Objects.equals(gender, that.gender);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, gender);
+    }
+}
+🚨 VERY IMPORTANT (Interview Point)
+Why equals() and hashCode() are required?
+
+For composite keys, Hibernate uses:
+
+identity comparison
+cache lookup
+persistence context tracking
+
+Without proper equals() and hashCode():
+❌ entity lookup may fail
+❌ duplicate issues can happen
+❌ Hibernate behavior becomes inconsistent
+
+🧠 What query will Hibernate generate?
+
+Something like:
+
+SELECT *
+FROM employee
+WHERE name = ?
+AND gender = ?
+⚡ Better Alternative (Spring Data Derived Query)
+
+You can even avoid @Query
+
+Employee findByEmployeeIdNameAndEmployeeIdGender(
+        String name,
+        String gender);
+
+✔ Cleaner
+✔ Type-safe
+✔ Recommended
+
+🧩 Architecture Concept
+🧠 Important Interview Questions from this Topic
+✔ Difference between:
+@EmbeddedId
+@IdClass
+✔ Why Serializable required?
+
+Because composite key object:
+
+may travel across JVM/network
+used in cache/session
+✔ Why no-arg constructor?
+
+Hibernate creates object using reflection.
+
+🎯 Interview Answer
+
+@EmbeddedId is used in JPA to represent a composite primary key using a separate embeddable class. The composite key class 
+must implement Serializable and should override equals() and hashCode() for correct Hibernate identity management. The entity 
+embeds this key using @EmbeddedId, and repository queries can access nested key fields using employeeId.fieldName.
+---------------------------------------------------------------------
+UPDATE employee
+SET gender = CASE
+	WHEN gender = 'male' THEN 'female'
+	WHEN gender = 'female' THEN 'male'
+ELSE gender
+END;
+---------------------------------------------------
+@Entity
+class User {
+    @Id
+    private Long id;
+    private String name;
+}
+
+👉 ORM maps this class to DB table automatically
+-----------------------------------------------
+| Optimistic              | Pessimistic              |
+| ----------------------- | ------------------------ |
+| No DB lock              | DB row locked            |
+| Better scalability      | Strong consistency       |
+| Conflict detected later | Conflict prevented early |
+
+
+👉 “Optimistic locking uses a version field to detect concurrent updates and prevent lost data without 
+
+locking database rows.”
+- used when multiple users update the same data concurrently.
+- “Conflicts are rare, so allow concurrent reads/writes, but detect conflicts before update.”
+		Admin A opens product price = 100
+		Admin B opens same product price = 100
+Step 1️⃣ Admin A updates
+	Price = 120
+	Version = 2
+
+✔ DB updated successfully
+
+Step 2️⃣ Admin B tries update
+
+👉 But Admin B still has old version = 1  ,  OptimisticLockException
+-----------------------------------------------
+👉 Inventory system:
+
+Only 1 product left
+
+User A and User B try buying simultaneously.
+
+Without lock:
+❌ Overselling possible
+
+With pessimistic lock:
+✔ One user waits
+✔ Safe inventory update
+
+⚖️ Advantages
+
+		✔ Prevents concurrent modification immediately
+		✔ Strong consistency
+		✔ Good for high-conflict scenarios
+
+❌ Disadvantages
+
+		❌ Lower performance
+		❌ Threads may wait
+		❌ Deadlock risk
+-----------------------------------------------
+
+-----------------------------------------------
+@Entity
+@Table(name = "users")
+class User {
+}
+
+✔ Used when:
+
+Table name is different from class name
+@Entity → class = table
+@Table → table name
+@Id → primary key
+-------------------------------------------------------
+Persistence Context = First-Level Cache
+
+👉 It stores managed entities during a transaction/session
+👉 Persistence Context = a temporary memory where Hibernate keeps your data(entity data) while your code is running
+🔄 Entity Lifecycle in Persistence Context
+Transient → Managed → Detached → Removed
+
+Transient  → New file (object) created
+Managed    → File opened & being edited or tracked by hibernate
+Detached   → File closed (no tracking)
+Removed    → File deleted
+-------------------------------------------------------
+EntityManager is the main interface used to interact with the database.
+
+👉 It is responsible for managing entities and the persistence context
+-------------------------------------------------------
+- first-level cache is:
+👉 A temporary memory inside the Persistence Context where Hibernate stores entities during a transaction
+-------------------------------------------------------
+LazyInitializationException happens when:
+👉 You try to access lazy-loaded data after the session (Persistence Context) is closed
+-------------------------------------------------------
+
+| Feature     | EAGER Loading       | LAZY Loading                |
+| ----------- | ------------------- | --------------------------- |
+| Fetch Time  | Immediately         | On demand                   |
+| Performance | Slower (extra data) | Faster                      |
+| DB Calls    | Fewer queries       | More queries                |
+| Risk        | Over-fetching       | LazyInitializationException and N+1 problem |
+
+🧠 Best Practice
+
+👉 Default to LAZY loading and control fetching when needed
+
+Use:
+
+JOIN FETCH
+EntityGraph
+-------------------------------------------------------
+@JoinColumn → owner, creates FK
+mappedBy → inverse, no FK
+Always one owner only
+
+public class Order {
+
+    @Id
+    @GeneratedValue
+    private Long orderId;
+
+    @ManyToOne
+    @JoinColumn(name = "customer_id") // FK column
+    private Customer customer;
+}
+----------------------------------------------------------------
+🚀 How to Optimize Hibernate Performance
+🧠 1. Use LAZY Loading (Default Strategy)
+
+👉 Avoid loading unnecessary data
+
+@OneToMany(fetch = FetchType.LAZY)
+
+✔ Load data only when needed
+✔ Prevents heavy queries
+
+⚡ 2. Solve N+1 Problem
+
+@EntityGraph(attributePaths = {"orders"})
+Customer findById(Long id);
+
+👉 Use:
+
+JOIN FETCH
+@EntityGraph
+@Query("SELECT o FROM Order o JOIN FETCH o.items")
+
+✔ Fetch related data in single query
+
+🗄️ 3. Use Proper Indexing in Database
+
+👉 Add indexes on:
+
+Foreign keys
+Frequently searched columns
+
+✔ Reduces query time drastically
+
+🔄 4. Enable Caching
+🔹 First-Level Cache (Default)
+
+✔ Already enabled
+
+🔹 Second-Level Cache
+
+Use tools like:
+
+Ehcache
+Redis
+
+✔ Avoid repeated DB hits
+
+📦 5. Use Pagination
+
+❌ Bad:
+
+findAll() // loads millions of records
+
+✔ Good:
+
+PageRequest.of(0, 10)
+
+✔ Fetch limited data
+
+⚡ 6. Select Only Required Fields (DTO Projection)
+@Query("SELECT new com.dto.UserDTO(u.name) FROM User u")
+
+✔ Avoid loading full entity
+
+🔧 7. Batch Processing
+hibernate.jdbc.batch_size=50
+
+✔ Insert/update multiple records in batch
+
+🧵 8. Avoid Too Many EAGER Relationships
+
+❌ EAGER everywhere → performance issue
+
+✔ Use LAZY + control fetch
+
+⚙️ 9. Tune Connection Pool
+
+Use:
+
+HikariCP (default in Spring Boot)
+
+✔ Configure:
+
+max pool size
+timeout
+📊 10. Enable SQL Logging (Debugging)
+spring.jpa.show-sql=true
+
+✔ Helps identify:
+
+N+1 problem
+
+Slow queries
+-------------------------------------------------------
+- 👉 “JPQL is an object-oriented query language used in JPA to query entities and their fields instead of database tables and columns.”
+
+SQL  → works with tables & columns
+JPQL → works with entities & fields
+
+How JPQL Works
+JPQL → Hibernate → Converts → SQL → Database
+
+✔ You write JPQL
+✔ Hibernate converts it to SQL automatically
+-------------------------------------------------------
+🔧 How to Enable Batch Fetching
+		🔹 Option 1: Annotation
+		@BatchSize(size = 5)
+		@OneToMany(fetch = FetchType.LAZY)
+		List<Item> items;
+		✔ Loads 5 collections at once
+
+🔹 Option 2: Global Config
+hibernate.default_batch_fetch_size=10
+✔ Applies to all entities
+💡 Example
+👉 Queries:
+
+Items for Order 1–3
+Items for Order 4–6
+Items for Order 7–9
+Items for Order 10
+
+✔ Only 4 queries instead of 10
+
+Solves N+1 problem partially
+Groups DB calls
+Improves performance
+-------------------------------------------------------
+
+-------------------------------------------------------
+“Cascading in JPA allows operations performed on a parent entity to automatically propagate to its related child entities.
+ CascadeType defines which operations like persist, merge, or remove should be applied.”
+-------------------------------------------------------
+📦 Example
+@Entity
+class Order {
+    @OneToMany(mappedBy = "order", orphanRemoval = true)
+    List<Item> items;
+}
+
+🔄 What Happens?
+order.getItems().remove(item);
+👉 Result:
+Item removed from list → Item deleted from DB ✅
+✔ No need to call delete() manually
+-------------------------------------------------------
+2. JpaRepository
+	👉 Provides everything from CrudRepository + extra features
+	📦 Additional Features
+	Pagination
+	Sorting , 
+	Batch operations
+	Flush control
+--------------------------	
+👉 Example: for sorting
+
+Sort users by name
+Sort products by price descending
+Sort orders by date
+
+- List<Product> products =
+    productRepository.findAll(
+        Sort.by("price")
+    );	
+-------------------------------	
+-------------------------------------------------------
+🧠 Problem with Large Data
+Loading 1 million records → High memory usage ❌
+Too many DB calls → Slow performance ❌
+🚀 How to Handle Large Data in JPA
+
+⚡ 1. Use Pagination (MOST IMPORTANT)
+		👉 Never load all data at once
+		Page<User> users = userRepository.findAll(PageRequest.of(0, 100));
+		✔ Fetch data in chunks
+		✔ Prevents memory overflow
+
+⚡ 2. Use Streaming
+		👉 Process data one-by-one instead of loading all
+		@Query("SELECT u FROM User u")
+		Stream<User> streamAllUsers();
+		✔ Useful for:
+		Large reports
+		Data processing
+		
+⚡ 3. Use Batch Processing
+		👉 Configure batch size:
+		hibernate.jdbc.batch_size=50
+		✔ Inserts/updates in batches
+		✔ Reduces DB round trips
+
+⚡ 4. Use DTO Projection
+		❌ Bad:
+		findAll() // loads full entity
+		✔ Good:
+		@Query("SELECT new com.dto.UserDTO(u.name) FROM User u")
+		✔ Fetch only required fields
+
+⚡ 5. Use Native Query for Heavy Data
+		👉 For complex queries:
+		@Query(value = "SELECT * FROM users LIMIT 100", nativeQuery = true)
+		✔ Faster execution
+
+⚡ 6. Use Indexing in Database
+		👉 Add index on:
+		Search fields
+		Foreign keys
+		✔ Speeds up queries
+
+⚡ 7. Avoid N+1 Problem
+		👉 Use:
+		JOIN FETCH
+		EntityGraph
+		✔ Reduces DB calls
+
+⚡ 8. Clear Persistence Context (Memory Optimization)
+		entityManager.flush();
+		entityManager.clear();
+
+✔ Prevents memory leak during bulk operations
+
+⚡ 9. Use Read-Only Transactions
+	@Transactional(readOnly = true)
+	✔ Improves performance
+
+⚡ 10. Use Asynchronous / Batch Jobs
+		👉 For very large data:
+		Use Spring Batch
+		Process in background
+--------------------------------------------------------------------------------------------------------------
+- 🧠 Step 1: Identify the Slow Query
+		👉 First find which query is slow
+		Use:
+		Application logs (spring.jpa.show-sql=true)
+		APM tools (e.g., New Relic, Datadog),
+		✔ Look for:
+		High response time
+		Frequent execution
+		
+🔍 Step 2: Analyze Query Execution Plan
+		👉 Use DB tools like:
+		EXPLAIN SELECT * FROM users WHERE email = 'test';
+		✔ Check:
+		Full table scan ❌
+		Index usage ✔
+⚡ Step 3: Add Proper Indexing
+		👉 Add index on:
+		WHERE conditions
+		JOIN columns
+		ORDER BY columns
+		✔ Example:
+		CREATE INDEX idx_email ON users(email);
+		
+🚫 Step 4: Avoid N+1 Problem (Hibernate)
+		If using Hibernate:
+		👉 Fix using:
+		JOIN FETCH
+		@EntityGraph
+		✔ Reduces multiple queries
+		
+📦 Step 5: Fetch Only Required Data
+		❌ Bad:
+		findAll()
+		✔ Good:
+		SELECT new UserDTO(u.name) FROM User u
+		✔ Reduces data load
+
+⚡ Step 6: Use Pagination
+		PageRequest.of(0, 50);
+		✔ Avoid loading millions of rows
+
+🔄 Step 7: Optimize Joins
+
+		👉 Avoid:
+
+		Too many joins
+		Unnecessary joins
+		✔ Use proper join type:
+		INNER JOIN (faster than LEFT JOIN in many cases)
+		
+🧵 Step 8: Enable Caching
+
+			Use:
+
+			Redis
+			Hibernate second-level cache
+
+			✔ Reduces repeated DB hits
+
+⚙️ Step 9: Check Database Configuration
+			Connection pool size
+			Slow query log
+			Locking / blocking issues
+			
+🔥 Step 10: Rewrite Query (If Needed)
+
+			👉 Sometimes ORM generates inefficient SQL
+
+			✔ Use:
+
+			Native Query
+			Optimized SQL
+			💡 Real Production Example
+
+“We had a slow API due to N+1 queries. We fixed it using JOIN FETCH and added indexing on foreign keys, reducing response time from 3 seconds 
+to 200 ms.”
+-------------------------------------------------------
+“Without @Transactional, database operations may not be executed within a proper transaction, 
+leading to issues like data inconsistency, failed rollbacks, LazyInitializationException, and uncommitted changes.”
+-------------------------------------------------------
+
+==========================================================================================================================================
+In Java Persistence API / Hibernate ORM, lazy-loaded data means:
+
+Data that is not fetched from the database immediately when the parent object is loaded.
+
+It is loaded only when you actually use it.
+
+Example
+
+Suppose you have:
+
+@Entity
+class User {
+
+    @Id
+    private Long id;
+
+    private String name;
+
+    @OneToMany(fetch = FetchType.LAZY)
+    private List<Order> orders;
+}
+
+Here:
+
+fetch = FetchType.LAZY
+
+means:
+
+User data loads immediately
+orders data does NOT load immediately
+What happens internally?
+
+When you do:
+
+User user = entityManager.find(User.class, 1L);
+
+Hibernate fetches only:
+
+id, name
+
+NOT orders.
+
+orders is kept as a proxy object (placeholder).
+
+When actual data loads?
+
+Only when you access it:
+
+user.getOrders();
+
+At that moment Hibernate fires another SQL query.
+
+This is called Lazy Loading.
+
+Why LazyInitializationException occurs
+
+Example:
+
+Session session = sessionFactory.openSession();
+
+User user = session.get(User.class, 1L);
+
+session.close(); // session closed
+
+user.getOrders(); // ERROR
+
+Now Hibernate wants to load orders,
+BUT database session is already closed.
+
+So it throws:
+
+LazyInitializationException
+Simple Real-Life Analogy
+
+Imagine:
+
+You ordered a book online
+Only book cover arrives first
+Inside pages download later when opened
+
+If internet disconnects before opening:
+→ pages cannot load
+
+Same concept in lazy loading.
+
+EAGER vs LAZY
+Type	Behavior
+EAGER	Load immediately
+LAZY	Load only when needed
+Common places where LAZY is used
+
+Mostly with relationships:
+
+@OneToMany
+@ManyToMany
+@ManyToOne
+@OneToOne
+How to avoid LazyInitializationException
+1. Access data before session closes
+user.getOrders().size();
+2. Use JOIN FETCH
+@Query("SELECT u FROM User u JOIN FETCH u.orders")
+3. Use DTO Projection
+
+Best approach in production.
+
+4. Change to EAGER (not usually recommended)
+fetch = FetchType.EAGER
+
+Can cause performance issues.
+------------------------------------------------------------------------------------------------------------------------------------------
+🧠 Database Selection Strategy
+
+Choosing the right database depends on:
+
+data type + scalability + consistency + query pattern
+
+There is NO single database best for everything.
+
+Using:
+
+MySQL
+PostgreSQL
+MongoDB
+Redis
+🚀 1️⃣ Understand Data Nature
+
+First analyze:
+
+✔ Structured or unstructured?
+✔ Transaction-heavy or read-heavy?
+✔ Relational or flexible schema?
+✔ Strong consistency needed?
+
+🚀 2️⃣ Use Relational DB (SQL) When
+
+Using:
+
+MySQL
+PostgreSQL
+
+Choose SQL DB when:
+
+✔ ACID transactions needed
+✔ Complex joins required
+✔ Strong consistency important
+✔ Structured schema
+
+🛒 E-commerce Examples
+
+✔ Orders
+✔ Payments
+✔ Banking transactions
+✔ Inventory management
+
+⚙️ Benefits
+
+✔ Strong consistency
+✔ Transactions
+✔ Referential integrity
+✔ Joins
+
+🚀 3️⃣ Use NoSQL DB When
+
+Using:
+
+MongoDB
+
+Choose NoSQL when:
+
+✔ Flexible schema
+✔ Huge scale
+✔ Fast development
+✔ High write throughput
+✔ Semi-structured data
+
+🛒 Examples
+
+✔ Product catalog
+✔ User activity
+✔ Logs
+✔ Recommendation data
+
+⚙️ Benefits
+
+✔ Horizontal scaling
+✔ Flexible schema
+✔ Better for large distributed data
+
+🚀 4️⃣ Use Redis for Caching
+
+Using:
+
+Redis
+
+Use for:
+✔ Sessions
+✔ OTP
+✔ Frequently accessed data
+✔ Rate limiting
+
+🚀 5️⃣ Read vs Write Pattern
+Heavy Read Systems
+
+Need:
+✔ caching
+✔ read replicas
+
+Heavy Write Systems
+
+Need:
+✔ partitioning
+✔ sharding
+✔ async processing
+
+🚀 6️⃣ Scalability Requirement
+Vertical Scaling
+Increase server power
+
+Common in SQL DBs.
+
+Horizontal Scaling
+Add more nodes
+
+Better supported by NoSQL DBs.
+
+🚀 7️⃣ Consistency Requirement
+
+If strict consistency needed:
+✔ SQL preferred
+
+If eventual consistency acceptable:
+✔ NoSQL possible
+
+🚀 8️⃣ Query Complexity
+
+Need:
+✔ joins
+✔ aggregation
+✔ transactions
+
+Choose:
+✔ relational DB
+
+🚀 9️⃣ Data Volume
+
+Huge-scale systems often use:
+✔ distributed NoSQL databases
+
+🚀 🔟 Cost Consideration
+
+NoSQL often cheaper for:
+✔ large distributed workloads
+
+🚀 1️⃣1️⃣ Polyglot Persistence
+
+Modern microservices may use multiple DBs.
+
+Example:
+
+Order Service → MySQL
+Catalog Service → MongoDB
+Cache → Redis
+🚀 1️⃣2️⃣ Availability vs Consistency
+
+CAP theorem consideration.
+
+Distributed systems must balance:
+✔ consistency
+✔ availability
+✔ partition tolerance
+
+🛒 Real E-commerce Database Strategy
+Service	Database
+Orders	MySQL
+Payments	PostgreSQL
+Product Catalog	MongoDB
+Cache	Redis
+Analytics	Elasticsearch
+⚠️ Important Interview Point
+
+👉 Database selection should depend on:
+
+business requirements
+
+NOT popularity.
+
+🎯 One-line Interview Answer
+
+👉 “Database selection depends on factors like transaction requirements, scalability, consistency, schema flexibility, query complexity, and 
+read/write traffic patterns.”
